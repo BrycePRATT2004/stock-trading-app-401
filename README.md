@@ -1,47 +1,71 @@
-# Stock Trading App (Flask)
+#STOCK TRADING APP
 
-This is a class project stock trading web application built with:
+##STACK
+Front End : HTML / CSS / JavaSCRIPT 
+Back End : Python + Flask
 
-- Python + Flask (backend)
-- HTML / CSS / JavaScript (frontend)
+## PROJECT STRUCTURE
+Stock-Trading-App
 
-Features (planned):
-- User registration & login
-- Dashboard / portfolio view
-- Buy & sell stocks
-- User data stored in JSON (for class project)
+app.py  
+templates/ (HTML files)  
+static/css (styles)  
+static/js (frontend JS)  
+data/users.json (fake database)  
+## Initial Setup (already done on Bryce’s machine)
 
-## Setup Instructions
-
-1. Clone the repo:
-
-git clone https://github.com/BrycePRATT2004/stock-trading-app-401.git
-
-2. Enter folder:
-
-cd stock-trading-app-401
-
-3. Create virtual environment:
+1. Created virtual environment:
 
 python3 -m venv venv
 
-4. Activate it:
+2. Activated it:
 
 source venv/bin/activate
 
-5. Install dependencies:
+3. Installed Flask:
+
+pip install flask
+
+4. Saved dependencies:
+
+pip freeze > requirements.txt
+
+---
+
+## Teammate Setup Instructions
+
+After downloading/cloning the project:
+
+1. Open folder in VS Code
+
+2. Create virtual environment:
+
+python3 -m venv venv
+
+3. Activate it:
+
+source venv/bin/activate
+
+4. Install dependencies:
 
 pip install -r requirements.txt
 
-6. Run app:
+---
 
-python app.py
+## Important
 
+Every time you reopen the project, run:
 
-## Project Structure
+source venv/bin/activate
 
-app.py – Flask backend  
-templates/ – HTML pages  
-static/css – styles  
-static/js – frontend JS  
-data/users.json – fake database  
+or Flask will not work.
+
+---
+
+## File Purpose
+
+app.py = Flask backend  
+templates/ = HTML pages  
+static/css = styling  
+static/js = browser JavaScript  
+data/users.json = fake database  
