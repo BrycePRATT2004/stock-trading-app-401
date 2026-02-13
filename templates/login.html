@@ -1,50 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep Space Trading</title>
 
-  <title>Stock Trading App</title>
-
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
-
-<head>
-
+  <link rel="stylesheet" href="../static/css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
 
 <body>
   <div class="login-container">
-    <div class="login-card">
+    <div class="stars"></div>
 
-      <h1>Stock Trading App</h1>
+    <!-- MAIN SHELL -->
+    <main class="auth-shell">
 
-      <form id="loginForm" method="POST" action="/login">
-        <div class="form-group">
-            
-          <label for="username">Username:</label>
-          <input type="text" id="username" name="username" required placeholder="Username" />
-
+      <!-- LEFT: IMAGE SCROLLER -->
+      <section class="media-panel" aria-label="Feature images">
+        <div class="media-carousel" id="mediaCarousel">
+          <img class="media-slide is-active" src="../static/scrollerimg1.png" alt="Feature 1" />
+          <img class="media-slide" src="../static/scrollerimg2.png" alt="Feature 2" />
+          <img class="media-slide" src="../static/scrollerimg3.png" alt="Feature 3" />
         </div>
-        
-        <div class="form-group">
-          <label for="password">Password:</label>
-          <input type="password" id="password" name="password" required placeholder="Password" />
+
+        <div class="media-caption">
+          <h3 class="media-title">Real-time telemetry</h3>
+          <p class="media-subtitle">Prices, alerts, and portfolio movement—always live.</p>
+
+          <div class="media-dots" id="mediaDots" aria-label="Carousel progress">
+            <span class="dot is-active"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
         </div>
-        
-        <button type="submit" class="btn-primary">Login</button>
-      </form>
-      
-      <div class="login-footer">
-        <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
-      </div>
-    </div>
+      </section>
+
+      <!-- RIGHT: CREATE ACCOUNT -->
+      <section class="form-panel">
+
+        <!-- Header row + Login button (top right) -->
+        <div class="form-topbar">
+          <header class="page-header">
+            <img class="page-header__logo" src="../static/logo.png" alt="App Logo" />
+            <div class="page-header__text">
+              <h1 class="page-header__title">Deep Space Trading</h1>
+              <p class="page-header__subtitle">Explore markets beyond the horizon</p>
+            </div>
+          </header>
+
+          <!-- No logic yet -->
+          <button class="top-login-btn" type="button">Login</button>
+        </div>
+
+        <div class="login-card">
+          <h2 class="card-title">Create an account</h2>
+          <p class="card-subtitle">Already have an account? <a href="#" aria-label="Login link">Log in</a></p>
+
+          <!-- No backend logic yet: keep action="#" for now -->
+          <form id="registerForm" method="POST" action="#">
+            <div class="form-grid">
+
+              <div class="field">
+                <input type="text" id="full_name" name="full_name" placeholder=" " required />
+                <label for="full_name">Full name</label>
+              </div>
+
+              <div class="field">
+                <input type="text" id="username" name="username" placeholder=" " required />
+                <label for="username">Username</label>
+              </div>
+
+              <div class="field">
+                <input type="email" id="email" name="email" placeholder=" " required />
+                <label for="email">Email</label>
+              </div>
+
+              <div class="field">
+                <input type="password" id="password" name="password" placeholder=" " required />
+                <label for="password">Password</label>
+              </div>
+
+              <div class="field">
+                <input type="tel" id="phone" name="phone" placeholder=" " required />
+                <label for="phone">Phone number</label>
+              </div>
+
+            </div>
+
+            <button type="submit" class="btn-primary">Create account</button>
+          </form>
+
+          <div class="login-footer">
+            <p>By creating an account, you agree to our <a href="#">Terms</a>.</p>
+          </div>
+        </div>
+
+        <div class="ticker ticker--big" aria-label="App features ticker">
+          <div class="ticker__track">
+            <span class="ticker__item">🚀 Real-time telemetry</span>
+            <span class="ticker__item">🌌 Zero-fee routes</span>
+            <span class="ticker__item">🛰️ Portfolio navigation</span>
+            <span class="ticker__item">📡 Signal alerts</span>
+            <span class="ticker__item">🪐 Watchlists & tracking</span>
+            <span class="ticker__item">🔐 Secure access</span>
+
+            <!-- duplicate for seamless loop -->
+            <span class="ticker__item">🚀 Real-time telemetry</span>
+            <span class="ticker__item">🌌 Zero-fee routes</span>
+            <span class="ticker__item">🛰️ Portfolio navigation</span>
+            <span class="ticker__item">📡 Signal alerts</span>
+            <span class="ticker__item">🪐 Watchlists & tracking</span>
+            <span class="ticker__item">🔐 Secure access</span>
+          </div>
+        </div>
+
+      </section>
+    </main>
   </div>
 
-  <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+  <!-- IMPORTANT: no space in the path -->
+  <script src="../static/js/ login-carousel.js"></script>
 </body>
-
-
-
+</html>

@@ -1,4 +1,6 @@
 from decimal import Decimal
+from flask import Flask, render_template
+
 ## Backend python logic
 
 
@@ -59,3 +61,13 @@ class GetPrices:
 
 #should not interface with accounts or trading
     pass
+
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return render_template("login.html")
+
+if __name__ == "__main__":
+    app.run(debug=True)

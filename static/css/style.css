@@ -1,108 +1,418 @@
-/* filepath: c:\Users\ralfa\Desktop\IFT 401 Project\New folder\stock-trading-app-401\static\css\style.css */
+/* ===============================
+   BASE
+================================ */
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+}
 
-/* Login Page Style */
-
+/* ===============================
+   BACKGROUND + LAYOUT
+================================ */
 .login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  position: relative;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: radial-gradient(circle at 30% 20%, #97d7ff 0%, #41446c 45%, #070915 100%);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
 }
 
-.login-card {
-  background: white;
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+/* ===============================
+   STARFIELD (more visible + drift)
+================================ */
+.stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stars::before,
+.stars::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.stars::before {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 120px 80px, rgba(255,255,255,0.85), transparent),
+    radial-gradient(1px 1px at 260px 140px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 340px 220px, rgba(255,255,255,0.85), transparent);
+  background-size: 420px 320px;
+  opacity: 0.75;
+  animation: drift 140s linear infinite;
+}
+
+.stars::after {
+  background-image:
+    radial-gradient(2px 2px at 60px 60px, rgba(255,255,255,0.75), transparent),
+    radial-gradient(2px 2px at 200px 200px, rgba(255,255,255,0.7), transparent),
+    radial-gradient(2px 2px at 380px 120px, rgba(255,255,255,0.7), transparent);
+  background-size: 520px 380px;
+  opacity: 0.55;
+  animation: drift 220s linear infinite reverse;
+}
+
+@keyframes drift {
+  from { transform: translate3d(0,0,0); }
+  to   { transform: translate3d(-220px, 140px, 0); }
+}
+
+/* ===============================
+   AUTH SHELL (2 columns)
+================================ */
+:root{
+  --media-nudge-x: -16px;    /* move scroller left (more negative = more left) */
+  --form-nudge-x:  0px;      /* keep form inside big box; use wrapper instead */
+  --header-nudge-x: 0px;
+  --header-nudge-y: 0px;
+}
+
+.auth-shell{
+  position: relative;
+  z-index: 2;
+  width: min(1180px, 96vw);
+
+  /* BIG “BOX” wrapper like your sample */
+  background: rgba(12, 14, 28, 0.55);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 26px;
+  box-shadow: 0 28px 120px rgba(0,0,0,0.55);
+
+  padding: 22px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 22px;
+  align-items: stretch;
+
+  backdrop-filter: blur(14px);
+}
+
+/* ===============================
+   LEFT PANEL: CAROUSEL
+================================ */
+.media-panel{
+  transform: translateX(var(--media-nudge-x));
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  min-height: 640px;
+}
+
+.media-carousel{
+  position: absolute;
+  inset: 0;
+}
+
+.media-slide{
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-width: 400px;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.02);
+  transition: opacity 700ms ease, transform 900ms ease;
 }
 
-.login-card h1 {
-  text-align: center;
-  margin-bottom: 30px;
-  color: #333;
+.media-slide.is-active{
+  opacity: 1;
+  transform: scale(1.0);
 }
 
-.form-group {
-  margin-bottom: 20px;
+/* caption overlay */
+.media-caption{
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: rgba(10, 12, 25, 0.55);
+  border: 1px solid rgba(255,255,255,0.16);
+  backdrop-filter: blur(10px);
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  color: #555;
-  font-weight: 600;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
-}
-
-.btn-primary {
-  width: 100%;
-  padding: 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
+.media-title{
+  margin: 0;
+  color: rgba(255,255,255,0.95);
   font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.3s;
+  font-weight: 700;
 }
 
-.btn-primary:hover {
-  background: #5568d3;
+.media-subtitle{
+  margin: 6px 0 0;
+  color: rgba(255,255,255,0.70);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
-.login-footer {
-  text-align: center;
-  margin-top: 20px;
+.media-dots{
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dot{
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.30);
+}
+.dot.is-active{
+  background: rgba(255,255,255,0.85);
+}
+
+/* ===============================
+   RIGHT PANEL
+================================ */
+.form-panel{
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+  justify-content: center;
+  padding: 6px 6px 6px 0;
+}
+
+/* Top row: Header + Login button (top right) */
+.form-topbar{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.page-header{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transform: translate(var(--header-nudge-x), var(--header-nudge-y));
+}
+
+.page-header__logo{
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  object-fit: cover;
+  background: rgba(255,255,255,0.15);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+}
+
+.page-header__title{
+  color: #fff;
+  font-size: 38px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.page-header__subtitle{
+  color: rgba(255,255,255,0.75);
   font-size: 14px;
-  color: #666;
+  margin-top: 4px;
 }
 
-.login-footer a {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 600;
+/* Top-right Login button (no logic) */
+.top-login-btn{
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 160ms ease, background 160ms ease;
 }
 
-.login-footer a:hover {
+.top-login-btn:hover{
+  filter: brightness(1.08);
+  background: rgba(255,255,255,0.10);
+}
+
+/* ===============================
+   CREATE ACCOUNT CARD
+================================ */
+.login-card{
+  width: 100%;
+  max-width: 520px;
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(14px);
+  border-radius: 18px;
+  padding: 22px;
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+}
+
+.card-title{
+  margin: 2px 0 6px;
+  color: rgba(255,255,255,0.95);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+
+.card-subtitle{
+  margin: 0 0 14px;
+  color: rgba(255,255,255,0.70);
+  font-size: 13px;
+}
+/* "Already have an account? Log in" link */
+.card-subtitle a{
+  color: #7df7d4;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 3px;   /* space from text */
+  text-decoration-thickness: 1.5px;
+}
+
+.card-subtitle a:hover{
+  color: #22ff00;
   text-decoration: underline;
 }
-
-/* Register Error Style */
-
-.error-message {
-  background-color: #f8d7da;
-  color: #721c24;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  border: 1px solid #f5c6cb;
-  font-size: 14px;
+/* Fields layout */
+.form-grid{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
 }
 
-.success-message {
-  background-color: #d4edda;
-  color: #155724;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  border: 1px solid #c3e6cb;
+.field{
+  position: relative;
+}
+
+/* (Keep your floating label style) */
+.field input{
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.10);
+  color: rgba(255, 255, 255, 0.94);
   font-size: 14px;
+  outline: none;
+}
+
+.field input:focus{
+  border-color: rgba(143,255,220,0.55);
+  box-shadow: 0 0 0 4px rgba(79, 230, 193, 0.12);
+}
+
+.field label{
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+  pointer-events: none;
+  transition: 0.18s ease;
+}
+
+.field input:focus + label,
+.field input:not(:placeholder-shown) + label{
+  top: -8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 242, 255, 0.55);
+  padding: 0 6px;
+  border-radius: 999px;
+}
+
+.btn-primary{
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 800;
+  background: linear-gradient(135deg, #5f7cff, #4ee6c1);
+  color: #050715;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.btn-primary:hover{ filter: brightness(1.07); }
+
+.login-footer{
+  text-align: center;
+  margin-top: 12px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+}
+
+.login-footer a{
+  color: #ffffff;
+  text-decoration: none;
+}
+
+/* ===============================
+   TICKER (kept)
+================================ */
+.ticker{
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(0,255,200,0.10);
+  border: 1px solid rgba(0,255,200,0.22);
+}
+
+.ticker__track{
+  display: flex;
+  gap: 32px;
+  padding-left: 0;
+  animation: ticker-scroll 24s linear infinite; /* slightly slower */
+}
+
+.ticker__item{
+  font-weight: 700;
+  color: rgba(255,255,255,0.92);
+  white-space: nowrap;
+  padding: 12px 0;
+}
+
+@keyframes ticker-scroll{
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+@media (max-width: 980px){
+  .auth-shell{
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .media-panel{
+    min-height: 360px;
+    transform: none;
+  }
+
+  .form-panel{
+    padding: 0;
+  }
+
+  .form-topbar{
+    align-items: center;
+  }
+
+  .page-header__title{
+    font-size: 30px;
+  }
+
+  .login-card{
+    max-width: 100%;
+  }
 }
