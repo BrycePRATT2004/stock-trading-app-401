@@ -1,84 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Help</title>
-
-  <style>
-    body{
-      font-family: Arial, Helvetica, sans-serif;
-      background:#fff;
-      padding:30px;
-    }
-
-    .faq{
-      max-width:800px;
-      margin:auto;
-      border:1px solid #e7e2ff;
-      border-radius:10px;
-    }
-
-    .question{
-      width:100%;
-      text-align:left;
-      padding:14px;
-      border:none;
-      border-bottom:1px solid #e7e2ff;
-      background:#f4f1ff;
-      font-weight:bold;
-      cursor:pointer;
-    }
-
-    .answer{
-      display:none;
-      padding:14px;
-      border-bottom:1px solid #eee;
-      background:#fff;
-    }
-  </style>
+  <title>Buy</title>
 </head>
-
 <body>
+  <h1>Buy</h1>
+  <p> A user can buy stocks on this page. will showcase available stocks with highlights of red and green if a stock is doing good or bad</p>
 
-  <div class="faq">
-
-    <button class="question">How do I reset my password?</button>
-    <div class="answer">
-      Password reset instructions will be added here.
-    </div>
-
-    <button class="question">How do I buy a stock?</button>
-    <div class="answer">
-      Instructions for buying a stock will be added here.
-    </div>
-
-    <button class="question">How do I sell a stock?</button>
-    <div class="answer">
-      Instructions for selling a stock will be added here.
-    </div>
-
-    <button class="question">Where can I view my trade history?</button>
-    <div class="answer">
-      Trade history details will be displayed here.
-    </div>
-
-    <button class="question">Is this real money?</button>
-    <div class="answer">
-      This application is for educational purposes only.
-    </div>
-
-  </div>
-
-  <script>
-    var questions = document.querySelectorAll(".question");
-
-    questions.forEach(function(q){
-      q.onclick = function(){
-        var answer = q.nextElementSibling;
-        answer.style.display =
-          answer.style.display === "block" ? "none" : "block";
-      };
-    });
-  </script>
-
+    <a href="/dashboard">Back to Dashboard</a>
 </body>
 </html>

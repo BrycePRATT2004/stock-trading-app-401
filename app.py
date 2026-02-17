@@ -36,7 +36,7 @@ class Account:
     def __init__(self, cash):
         self.cash = Decimal(cash)
 
-account = Account("10000.69")
+account = Account("1000.12")
 print(f"${account.cash:,.2f}")
 
 class User:
@@ -198,16 +198,23 @@ def buy():
 def sell():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
-
+    
     return render_template("sell.html")
-
 
 @app.route("/wallet")
 def wallet():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    return render_template("wallet.html")
+    stock_value = Decimal("1250.00")   # placeholder for now
+    total_value = account.cash + stock_value
+
+    return render_template(
+        "wallet.html",
+        cash=account.cash,
+        stock_value=stock_value,
+        total_value=total_value
+    )
 
 
 @app.route("/help")
@@ -216,6 +223,39 @@ def help_page():
         return redirect(url_for("login_page"))
 
     return render_template("help.html")
+ 
+@app.post("/wallet/deposit")
+def wallet_deposit():
+    user_id = session.get("user_id")
+    if not user_id:
+        return "Not logged in", 401
 
+    amount_str = (request.form.get("amount") or "").strip()
+
+    try:
+        amount = Decimal(amount_str)
+    except (InvalidOperation, ValueError):
+        return redirect(url_for("wallet"))  # or flash an error
+
+    # basic validation
+    if amount <= 0:
+        return redirect(url_for("wallet"))
+
+    user = users_col.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return "User not found", 404
+
+    current_cash = Decimal(str(user.get("cash", "0")))
+    new_cash = current_cash + amount
+
+    users_col.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"cash": str(new_cash)}}
+    )
+
+    return redirect(url_for("wallet"))
+
+
+    
 if __name__ == "__main__":
     app.run(debug=True)

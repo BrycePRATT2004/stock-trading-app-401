@@ -1,12 +1,171 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Wallet</title>
-</head>
-<body>
-  <h1>Wallet</h1>
-  <p> Wallet page will include how much $ and Stocks the user has. May rename to holdings.</p>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <a href="/dashboard">Back to Dashboard</a>
+  <title>Wallet</title>
+
+  <!-- Keep this if you still want global styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+  <style>
+    body{
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      padding: 30px;
+      background: #ffffff;
+      color: #111;
+    }
+
+    .box{
+      max-width: 850px;
+      margin: 0 auto;
+      border: 1px solid #e7e2ff;
+      border-radius: 10px;
+      padding: 18px;
+    }
+
+    h1{ margin-top: 0; }
+    h2{ margin-bottom: 10px; margin-top: 25px; }
+
+    .row{
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td{
+      border: 1px solid #eee;
+      padding: 10px;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th{
+      background: #f4f1ff;
+    }
+
+    .right{
+      text-align: right;
+    }
+
+    input{
+      padding: 10px;
+      width: 200px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+
+    button{
+      padding: 10px 14px;
+      border: 1px solid #e7e2ff;
+      background: #f4f1ff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover{
+      background: #ece6ff;
+    }
+
+    .links{
+      margin-top: 18px;
+    }
+
+    a{
+      color: #3b2a86;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    /* ===============================
+       WALLET CASH STATES (FIX)
+    ================================ */
+    .cash-good{
+      color: #2ecc71; /* finance green */
+      font-weight: 800;
+    }
+
+    .cash-mid{
+      color: #f1c40f; /* yellow */
+      font-weight: 800;
+    }
+
+    .cash-low{
+      color: #e74c3c; /* red */
+      font-weight: 800;
+    }
+
+    .cash-warning{
+      color: #e74c3c;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="box">
+    <h1>Wallet</h1>
+
+    <!-- summary -->
+    <div class="row">
+      <div><b>Cash Balance</b></div>
+      <div class="right">
+        {% set cash_num = cash|float %}
+
+        {% if cash_num >= 8000 %}
+          <span class="cash-good">
+            ${{ "%.2f"|format(cash_num) }}
+          </span>
+
+        {% elif cash_num >= 2000 %}
+          <span class="cash-mid">
+            ${{ "%.2f"|format(cash_num) }}
+          </span>
+
+        {% else %}
+          <span class="cash-low">
+            ${{ "%.2f"|format(cash_num) }}
+          </span>
+          <div class="cash-warning">
+            ⚠ Low on cash!
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row">
+      <div><b>Stock Holdings Value</b></div>
+      <div class="right">${{ "%.2f"|format(stock_value) }}</div>
+    </div>
+
+    <div class="row" style="border-bottom:none;">
+      <div><b>Total Portfolio Value</b></div>
+      <div class="right"><b>${{ "%.2f"|format(total_value) }}</b></div>
+    </div>
+
+    <!-- deposit -->
+    <h2>Deposit Money</h2>
+    <form action="/wallet/deposit" method="POST">
+      <input type="number" name="amount" step="0.01" min="0" placeholder="Enter amount" required />
+      <button type="submit">Deposit</button>
+    </form>
+
+    <div class="links">
+      <a href="/dashboard">← Back to Dashboard</a>
+    </div>
+
+  </div>
 </body>
 </html>
