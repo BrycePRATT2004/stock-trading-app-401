@@ -1,12 +1,342 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Selling Page</title>
-</head>
-<body>
-  <h1>Sell</h1>
-  <p> Users can sell their current holdings here. Will display all of users holdings and an option to sell with the price</p>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sell Stocks</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #fff;
+      margin: 0;
+      padding: 0;
+    }
 
-    <a href="/dashboard">Back to Dashboard</a>
+    .navbar {
+      border-bottom: 1px solid #e7e2ff;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      font-weight: bold;
+      font-size: 16px;
+      color: #3b2a86;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 12px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: #3b2a86;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #e7e2ff;
+    }
+
+    .nav-links a:hover {
+      background: #f4f1ff;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 1px solid #e7e2ff;
+      border-radius: 10px;
+      background: #f9f7ff;
+    }
+
+    h1 {
+      color: #3b2a86;
+      margin-top: 0;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-weight: bold;
+      color: #3b2a86;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    input, select {
+      padding: 10px;
+      border: 1px solid #e7e2ff;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #6d3cff;
+      box-shadow: 0 0 0 3px rgba(109, 60, 255, 0.1);
+    }
+
+    .info-box {
+      background: #ece6ff;
+      border: 1px solid #d9ceff;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #3b2a86;
+    }
+
+    .holding-info {
+      background: #f0eaff;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #3b2a86;
+    }
+
+    .price-preview {
+      background: #f0eaff;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #3b2a86;
+    }
+
+    button {
+      background: #6d3cff;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    button:hover {
+      background: #5a2dd8;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #6d3cff;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .error {
+      color: #d32f2f;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .no-holdings {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      color: #856404;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="navbar">
+    <div class="nav-brand">📈 Stock Trading App</div>
+    <div class="nav-links">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
+    <h1>Sell Stocks</h1>
+
+    {% if error %}
+      <div class="info-box" style="background: #ffebee; border-color: #ffcdd2; color: #c62828;">
+        {{ error }}
+      </div>
+    {% endif %}
+
+    {% if not portfolio or portfolio|length == 0 %}
+      <div class="no-holdings">
+        📭 You have no stocks to sell. Visit the <a href="{{ url_for('buy') }}" style="color: #0056b3;">Buy page</a> to start trading!
+      </div>
+    {% else %}
+      <form method="POST" action="{{ url_for('sell_post') }}" id="sellForm">
+        <div class="form-group">
+          <label for="ticker">Select Stock to Sell *</label>
+          <select id="ticker" name="ticker" required onchange="updateHoldingInfo()">
+            <option value="">-- Select a stock --</option>
+            {% for ticker, info in portfolio.items() %}
+              <option value="{{ ticker }}" data-shares="{{ info.shares }}" data-company="{{ info.company }}">
+                {{ ticker }} - {{ info.company }} ({{ info.shares }} shares)
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="holding-info" id="holdingInfo" style="display: none;">
+          <strong>Company:</strong> <span id="holdingCompany">-</span><br />
+          <strong>Shares Owned:</strong> <span id="holdingShares">0</span><br />
+          <strong>Average Price:</strong> $<span id="holdingAvgPrice">0.00</span>
+        </div>
+
+        <div class="form-group">
+          <label for="shares">Number of Shares to Sell *</label>
+          <input 
+            type="number" 
+            id="shares" 
+            name="shares" 
+            placeholder="e.g., 5" 
+            min="1"
+            step="1"
+            required 
+          />
+          <span class="error" style="display: none;" id="sharesError">Must be a positive integer and not exceed your holdings</span>
+        </div>
+
+        <div class="form-group">
+          <label for="price">Price per Share ($) *</label>
+          <input 
+            type="number" 
+            id="price" 
+            name="price" 
+            placeholder="e.g., 150.25" 
+            min="0.01"
+            step="0.01"
+            required 
+          />
+          <span class="error" style="display: none;" id="priceError">Must be a positive number</span>
+        </div>
+
+        <div class="price-preview">
+          <strong>Total Proceeds:</strong> $<span id="totalProceeds">0.00</span>
+          <div id="insufficientShares" style="color: #d32f2f; margin-top: 6px; display: none;">
+            ⚠️ You cannot sell more than you own
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn">Place Sell Order</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <script>
+    const tickerSelect = document.getElementById('ticker');
+    const sharesInput = document.getElementById('shares');
+    const priceInput = document.getElementById('price');
+    const totalProceedsSpan = document.getElementById('totalProceeds');
+    const insufficientSharesDiv = document.getElementById('insufficientShares');
+    const submitBtn = document.getElementById('submitBtn');
+    const holdingInfo = document.getElementById('holdingInfo');
+
+    function updateHoldingInfo() {
+      const selectedOption = tickerSelect.options[tickerSelect.selectedIndex];
+      if (selectedOption.value === '') {
+        holdingInfo.style.display = 'none';
+        sharesInput.value = '';
+        priceInput.value = '';
+        totalProceedsSpan.textContent = '0.00';
+        return;
+      }
+
+      const company = selectedOption.getAttribute('data-company');
+      const shares = selectedOption.getAttribute('data-shares');
+      
+      // Get average price from portfolio (would need to pass this from backend)
+      document.getElementById('holdingCompany').textContent = company;
+      document.getElementById('holdingShares').textContent = shares;
+      holdingInfo.style.display = 'block';
+      
+      updateTotalProceeds();
+    }
+
+    function updateTotalProceeds() {
+      const selectedOption = tickerSelect.options[tickerSelect.selectedIndex];
+      if (selectedOption.value === '') {
+        totalProceedsSpan.textContent = '0.00';
+        insufficientSharesDiv.style.display = 'none';
+        return;
+      }
+
+      const maxShares = parseInt(selectedOption.getAttribute('data-shares')) || 0;
+      const shares = parseInt(sharesInput.value) || 0;
+      const price = parseFloat(priceInput.value) || 0;
+      const total = (shares * price).toFixed(2);
+      totalProceedsSpan.textContent = total;
+
+      // Check if user is trying to sell more than they own
+      if (shares > maxShares) {
+        insufficientSharesDiv.style.display = 'block';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+      } else {
+        insufficientSharesDiv.style.display = 'none';
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+      }
+    }
+
+    tickerSelect.addEventListener('change', updateHoldingInfo);
+    sharesInput.addEventListener('input', updateTotalProceeds);
+    priceInput.addEventListener('input', updateTotalProceeds);
+
+    // Form validation
+    document.getElementById('sellForm').addEventListener('submit', function(e) {
+      const ticker = tickerSelect.value.trim();
+      const shares = parseInt(sharesInput.value);
+      const price = parseFloat(priceInput.value);
+      const maxShares = parseInt(tickerSelect.options[tickerSelect.selectedIndex].getAttribute('data-shares')) || 0;
+
+      let hasError = false;
+
+      if (!ticker) {
+        hasError = true;
+      }
+
+      if (shares < 1 || !Number.isInteger(shares) || shares > maxShares) {
+        document.getElementById('sharesError').style.display = 'block';
+        hasError = true;
+      } else {
+        document.getElementById('sharesError').style.display = 'none';
+      }
+
+      if (price <= 0) {
+        document.getElementById('priceError').style.display = 'block';
+        hasError = true;
+      } else {
+        document.getElementById('priceError').style.display = 'none';
+      }
+
+      if (hasError) {
+        e.preventDefault();
+      }
+    });
+  </script>
 </body>
 </html>
