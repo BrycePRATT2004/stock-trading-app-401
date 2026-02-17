@@ -1,119 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard - Stock Trading App</title>
+  <title>Dashboard</title>
+
+  <!-- keep your CSS if you want -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
 
 <body>
-  <!-- Navigation Bar -->
   <nav class="navbar">
     <div class="nav-container">
       <div class="nav-brand">📈 Stock Trading App</div>
       <div class="nav-links">
-        <span class="username">Welcome, {{ username }}!</span>
         <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
       </div>
     </div>
   </nav>
 
-  <!-- Main Dashboard Container -->
   <div class="dashboard-container">
-    
-    <!-- Portfolio Summary Section -->
-    <section class="portfolio-summary">
-      <h2>Portfolio Summary</h2>
-      <div class="summary-cards">
-        <div class="summary-card">
-          <p class="card-label">Cash Balance</p>
-          <p class="card-value">${{ "%.2f"|format(portfolio.cash) }}</p>
-        </div>
-        <div class="summary-card">
-          <p class="card-label">Total Invested</p>
-          <p class="card-value">${{ "%.2f"|format(total_invested) }}</p>
-        </div>
-        <div class="summary-card">
-          <p class="card-label">Portfolio Value</p>
-          <p class="card-value">${{ "%.2f"|format(portfolio_value) }}</p>
-        </div>
-        <div class="summary-card">
-          <p class="card-label">Total Return</p>
-          <p class="card-value {% if total_return >= 0 %}positive{% else %}negative{% endif %}">
-            {{ "%.2f"|format(total_return) }}%
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Trading Section -->
-    <section class="trading-section">
-      <h2>Trade Stocks</h2>
-      <form method="POST" class="trade-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="ticker">Ticker Symbol:</label>
-            <input type="text" id="ticker" name="ticker" placeholder="e.g., AAPL" required />
-          </div>
-          <div class="form-group">
-            <label for="quantity">Quantity:</label>
-            <input type="number" id="quantity" name="quantity" placeholder="1" min="1" required />
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <button type="submit" name="action" value="buy" class="btn-buy">Buy</button>
-          <button type="submit" name="action" value="sell" class="btn-sell">Sell</button>
-        </div>
-      </form>
-
-      {% if trade_message %}
-        <div class="message-box {% if 'Successfully' in trade_message %}success{% else %}error{% endif %}">
-          {{ trade_message }}
-        </div>
-      {% endif %}
-    </section>
-
-    <!-- Holdings Section -->
-    <section class="holdings-section">
-      <h2>Your Holdings</h2>
-      {% if portfolio.stocks %}
-        <table class="holdings-table">
-          <thead>
-            <tr>
-              <th>Ticker</th>
-              <th>Quantity</th>
-              <th>Avg Cost</th>
-              <th>Current Price</th>
-              <th>Value</th>
-              <th>Gain/Loss</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for ticker, stock in portfolio.stocks.items() %}
-            <tr>
-              <td><strong>{{ ticker }}</strong></td>
-              <td>{{ stock.quantity }}</td>
-              <td>${{ "%.2f"|format(stock.avg_cost) }}</td>
-              <td>${{ "%.2f"|format(stock.current_price) }}</td>
-              <td>${{ "%.2f"|format(stock.quantity * stock.current_price) }}</td>
-              <td class="{% if (stock.current_price - stock.avg_cost) >= 0 %}gain{% else %}loss{% endif %}">
-                ${{ "%.2f"|format((stock.current_price - stock.avg_cost) * stock.quantity) }}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p class="no-holdings">No stocks in your portfolio. Start trading!</p>
-      {% endif %}
-    </section>
-
+    <h1>✅ Correctly routed to the main dashboard page</h1>
+    <p>- bryce pratt</p>
   </div>
-
-  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
-
 </html>

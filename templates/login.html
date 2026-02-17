@@ -49,17 +49,19 @@
             </div>
           </header>
 
-          <!-- No logic yet -->
-          <button class="top-login-btn" type="button">Login</button>
+          <!-- GOES TO register.html via /login route -->
+          <a class="top-login-btn" href="/login">Login</a>
         </div>
 
         <div class="login-card">
           <h2 class="card-title">Create an account</h2>
-          <p class="card-subtitle">Already have an account? <a href="#" aria-label="Login link">Log in</a></p>
 
-          <!-- No backend logic yet: keep action="#" for now -->
-          <form id="registerForm" method="POST" action="#">
-            <div class="form-grid">
+          {% if error %}
+  <p style="color:#ffb3b3; margin: 8px 0 12px;">{{ error }}</p>
+{% endif %}
+          <!-- No backend logic yet -->
+            <form id="registerForm" method="POST" action="/register">           
+               <div class="form-grid">
 
               <div class="field">
                 <input type="text" id="full_name" name="full_name" placeholder=" " required />
@@ -119,7 +121,6 @@
     </main>
   </div>
 
-  <!-- IMPORTANT: no space in the path -->
-  <script src="../static/js/ login-carousel.js"></script>
+  <script src="../static/js/login-carousel.js"></script>
 </body>
 </html>
