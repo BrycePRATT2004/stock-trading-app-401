@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Help</title>
+
+  <style>
+    body{
+      font-family: Arial, Helvetica, sans-serif;
+      background:#fff;
+      padding:30px;
+    }
+
+    .faq{
+      max-width:800px;
+      margin: 120px auto;
+      border:1px solid #e7e2ff;
+      border-radius:10px;
+    }
+
+    .question{
+      width:100%;
+      text-align:left;
+      padding:20px;
+      border:none;
+      border-bottom:1px solid #e7e2ff;
+      background:#f4f1ff;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    .answer{
+      display:none;
+      padding:14px;
+      border-bottom:1px solid #eee;
+      background:#fff;
+    }
+    .faq-title{
+  max-width:800px;
+  margin:40px auto 20px auto; /* top | left/right | bottom */
+  text-align:center;
+  font-size:28px;
+  color:#3b2a86;
+}
+  </style>
+</head>
+
+<body>
+<h1 class="faq-title">Frequently Asked Questions</h1>
+  <div class="faq">
+
+    <button class="question">How do I reset my password?</button>
+    <div class="answer">
+        To reset your password, simply click Forgot Password in the account settings. You will be prompted to enter your email belonging to your account to reset your password.
+    </div>
+
+    <button class="question">How do I buy a stock?</button>
+    <div class="answer">
+      You may buy stocks from the dashboard or buy stock page. Simply click on a stock you would like to buy and view information about the stock. From here, you can press the green "Buy" button followed by the quantity of stock(s) you would like to purchase.
+    </div>
+
+    <button class="question">How do I sell a stock?</button>
+    <div class="answer">
+     Users can sell their current holdings on the Sell Page located from the dashboard. Users clicking on this page will be able to access all of their holdings and confirm specific holdings to sell.
+    </div>
+
+    <button class="question">Where can I view my past trades?</button>
+    <div class="answer">
+      Simply locate the "Trade History" icon from the dashboard. Users can view all trades they have ever made here. 
+    </div>
+
+    <button class="question">Is this real money?</button>
+    <div class="answer">
+      This application does not use real money. User's can deposit any amount of fake money as they please for stock teaching purposes
+    </div>
+
+  </div>
+
+  <script>
+    var questions = document.querySelectorAll(".question");
+
+    questions.forEach(function(q){
+      q.onclick = function(){
+        var answer = q.nextElementSibling;
+        answer.style.display =
+          answer.style.display === "block" ? "none" : "block";
+      };
+    });
+  </script>
+
+</body>
+</html>

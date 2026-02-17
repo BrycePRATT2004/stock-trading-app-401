@@ -52,6 +52,18 @@ class GetPrices:
 # Routes
 # ----------------------------
 
+
+
+
+
+
+
+
+
+
+
+
+
 # Create Account page (your login.html)
 @app.route("/", methods=["GET"])
 def create_account_page():
@@ -161,6 +173,49 @@ def logout():
 def test_db():
     client.admin.command("ping")
     return "✅ MongoDB connected (ping ok)"
+
+# ----------------------------
+# Additional pages (protected)
+# ----------------------------
+
+@app.route("/trade-history")
+def trade_history():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    return render_template("trade_history.html")
+
+
+@app.route("/buy")
+def buy():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    return render_template("buy.html")
+
+
+@app.route("/sell")
+def sell():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    return render_template("sell.html")
+
+
+@app.route("/wallet")
+def wallet():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    return render_template("wallet.html")
+
+
+@app.route("/help")
+def help_page():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    return render_template("help.html")
 
 if __name__ == "__main__":
     app.run(debug=True)

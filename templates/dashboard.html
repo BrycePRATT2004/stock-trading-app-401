@@ -5,23 +5,436 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard</title>
 
-  <!-- keep your CSS if you want -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <style>
+    body{
+      margin:0;
+      font-family: Arial, Helvetica, sans-serif;
+      background:#ffffff;
+      color:#111;
+    }
+
+    /* top bar */
+    .topbar{
+      border-bottom:1px solid #e7e2ff;
+      padding:12px 18px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .logo{
+      width:34px;
+      height:34px;
+      border-radius:10px;
+      background:#6d3cff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      font-weight:bold;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      line-height:1.1;
+    }
+    .title b{ font-size:14px; }
+    .title small{ font-size:12px; color:#666; }
+
+    .search{
+      flex:1;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid #e7e2ff;
+      border-radius:20px;
+      padding:8px 10px;
+      margin-left:10px;
+    }
+    .search input{
+      border:none;
+      outline:none;
+      width:100%;
+      font-size:14px;
+    }
+
+    .nav{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .nav button{
+      background:#f4f1ff;
+      border:1px solid #e7e2ff;
+      color:#3b2a86;
+      padding:8px 10px;
+      border-radius:16px;
+      font-size:13px;
+      cursor:pointer;
+    }
+    .nav button:hover{
+      background:#ece6ff;
+    }
+
+    /* page layout */
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 340px;
+      gap:16px;
+    }
+
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    /* main panel */
+    .panel{
+      border:1px solid #e7e2ff;
+      border-radius:14px;
+      padding:16px;
+    }
+
+    .acctRow{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .acctType select{
+      border:1px solid #e7e2ff;
+      border-radius:10px;
+      padding:6px 8px;
+      background:white;
+    }
+
+    .balance{
+      margin-top:10px;
+    }
+    .balance h1{
+      margin:6px 0 4px 0;
+      font-size:44px;
+      letter-spacing:-1px;
+    }
+    .balance .change{
+      font-size:13px;
+      color:#1a7f37;
+      font-weight:bold;
+    }
+
+    /* chart */
+    .chartBox{
+      margin-top:14px;
+      border:1px solid #e7e2ff;
+      border-radius:12px;
+      height:300px;
+      position:relative;
+      overflow:hidden;
+      background:#faf9ff;
+    }
+
+    .chartTime{
+      position:absolute;
+      top:10px;
+      right:10px;
+      background:white;
+      border:1px solid #e7e2ff;
+      border-radius:14px;
+      padding:6px 10px;
+      font-size:12px;
+      color:#555;
+    }
+
+    .rangeRow{
+      margin-top:12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .rangeRow button{
+      border:1px solid #e7e2ff;
+      background:white;
+      padding:7px 10px;
+      border-radius:14px;
+      cursor:pointer;
+      font-size:12px;
+      color:#444;
+    }
+    .rangeRow button.active{
+      background:#f4f1ff;
+      color:#3b2a86;
+      font-weight:bold;
+    }
+
+    .buyingPower{
+      margin-top:14px;
+      padding-top:12px;
+      border-top:1px solid #eee;
+      display:flex;
+      justify-content:space-between;
+      color:#444;
+      font-size:14px;
+    }
+
+    /* right side panel */
+    .side{
+      border:1px solid #e7e2ff;
+      border-radius:14px;
+      padding:16px;
+    }
+
+    .side h2{
+      margin:0 0 10px 0;
+      font-size:14px;
+    }
+
+    .listItem{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px;
+      border:1px solid #eee;
+      border-radius:12px;
+      margin-bottom:10px;
+      background:white;
+    }
+
+    .watchRow{
+      display:grid;
+      grid-template-columns: 1fr 70px 70px;
+      gap:8px;
+      align-items:center;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid #eee;
+      margin-bottom:8px;
+      background:white;
+    }
+
+    .ticker{ font-weight:bold; font-size:13px; }
+    .spark{
+      height:20px;
+      border:1px solid #e7e2ff;
+      border-radius:8px;
+      background:#ffffff;
+      position:relative;
+      overflow:hidden;
+    }
+
+    /* simple line in spark */
+    .spark:after{
+      content:"";
+      position:absolute;
+      left:0; top:10px;
+      width:100%; height:2px;
+      background:#6d3cff;
+      opacity:0.4;
+    }
+
+    .price{
+      text-align:right;
+      font-weight:bold;
+      font-size:13px;
+    }
+
+    .pct{
+      text-align:right;
+      font-size:12px;
+      color:#666;
+      margin-top:2px;
+    }
+    .good{ color:#1a7f37; font-weight:bold; }
+    .bad{ color:#b42318; font-weight:bold; }
+  </style>
 </head>
 
 <body>
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-brand">📈 Stock Trading App</div>
-      <div class="nav-links">
-        <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
-      </div>
-    </div>
-  </nav>
+  <div class="topbar">
+    <div class="logo">PT</div>
 
-  <div class="dashboard-container">
-    <h1>✅ Correctly routed to the main dashboard page</h1>
-    <p>- bryce pratt</p>
+    <div class="title">
+      <b>Deep Space Trading</b>
+      <small>Dashboard</small>
+    </div>
+
+    <div class="search">
+      <span style="color:#777;">🔍</span>
+      <input id="searchInput" type="text" placeholder="Search tickers..." />
+    </div>
+
+    <div class="nav">
+  <a href="/trade-history"><button type="button">Trade History</button></a>
+  <a href="/buy"><button type="button">Buy</button></a>
+  <a href="/sell"><button type="button">Sell</button></a>
+  <a href="/wallet"><button type="button">Wallet</button></a>
+  <a href="/help"><button type="button">Help</button></a>
+</div>
   </div>
+
+  <div class="wrap">
+    <div class="grid">
+
+      <!-- left main -->
+      <div class="panel">
+        <div class="acctRow">
+          <div class="acctType">
+            <select>
+              <option>Individual</option>
+            </select>
+          </div>
+
+          <div style="color:#666;font-size:12px;">
+            (static page for now)
+          </div>
+        </div>
+
+        <div class="balance">
+          <h1 id="balance">$1,520.00</h1>
+          <div class="change">▲ $12.40 (0.82%) Today</div>
+        </div>
+
+        <div class="chartBox">
+          <div class="chartTime" id="timeLabel">2:03 PM</div>
+
+          <!-- basic chart placeholder -->
+          <svg viewBox="0 0 1000 300" width="100%" height="100%" preserveAspectRatio="none">
+            <path d="M0 200 C 140 170, 250 220, 380 175 C 520 130, 630 160, 740 115 C 860 70, 930 100, 1000 85"
+                  fill="none" stroke="#6d3cff" stroke-width="5" stroke-linecap="round" />
+            <circle cx="740" cy="115" r="8" fill="#6d3cff"></circle>
+          </svg>
+        </div>
+
+        <div class="rangeRow">
+          <button class="rangeBtn active" type="button">1D</button>
+          <button class="rangeBtn" type="button">1W</button>
+          <button class="rangeBtn" type="button">1M</button>
+          <button class="rangeBtn" type="button">3M</button>
+          <button class="rangeBtn" type="button">YTD</button>
+          <button class="rangeBtn" type="button">1Y</button>
+          <button class="rangeBtn" type="button">ALL</button>
+        </div>
+
+        <div class="buyingPower">
+          <div>Buying power</div>
+          <div id="buyingPower">$1,520.00</div>
+        </div>
+      </div>
+
+      <!-- right side -->
+      <div class="side">
+        <h2>Lists</h2>
+
+        <div class="listItem">
+          <div><b>Options Watchlist</b></div>
+          <div style="color:#666;">▾</div>
+        </div>
+        <div class="listItem">
+          <div><b>My First List</b></div>
+          <div style="color:#666;">▾</div>
+        </div>
+
+        <div style="margin-top:14px; margin-bottom:8px; color:#666; font-size:12px;">
+          Watchlist
+        </div>
+
+        <div id="watchlist">
+          <div class="watchRow">
+            <div class="ticker">TSLA</div>
+            <div class="spark"></div>
+            <div>
+              <div class="price">$411.36</div>
+              <div class="pct bad">-1.46%</div>
+            </div>
+          </div>
+
+          <div class="watchRow">
+            <div class="ticker">NVDA</div>
+            <div class="spark"></div>
+            <div>
+              <div class="price">$185.92</div>
+              <div class="pct good">+1.70%</div>
+            </div>
+          </div>
+
+          <div class="watchRow">
+            <div class="ticker">AAPL</div>
+            <div class="spark"></div>
+            <div>
+              <div class="price">$265.35</div>
+              <div class="pct good">+3.74%</div>
+            </div>
+          </div>
+
+          <div class="watchRow">
+            <div class="ticker">LCID</div>
+            <div class="spark"></div>
+            <div>
+              <div class="price">$9.92</div>
+              <div class="pct bad">-3.48%</div>
+            </div>
+          </div>
+
+          <div class="watchRow">
+            <div class="ticker">AMZN</div>
+            <div class="spark"></div>
+            <div>
+              <div class="price">$201.11</div>
+              <div class="pct good">+1.17%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // time label just to look "live"
+    function updateTime(){
+      var d = new Date();
+      var hrs = d.getHours() % 12;
+      if (hrs === 0) hrs = 12;
+      var mins = d.getMinutes();
+      if (mins < 10) mins = "0" + mins;
+      var ampm = d.getHours() >= 12 ? "PM" : "AM";
+      document.getElementById("timeLabel").innerText = hrs + ":" + mins + " " + ampm;
+    }
+    updateTime();
+    setInterval(updateTime, 15000);
+
+    // range button active (UI only)
+    var btns = document.querySelectorAll(".rangeBtn");
+    btns.forEach(function(btn){
+      btn.addEventListener("click", function(){
+        btns.forEach(function(b){ b.classList.remove("active"); });
+        btn.classList.add("active");
+      });
+    });
+
+    // search filter on right watchlist (UI only)
+    var searchInput = document.getElementById("searchInput");
+    var watchlist = document.getElementById("watchlist");
+
+    searchInput.addEventListener("input", function(){
+      var q = searchInput.value.toUpperCase().trim();
+      var rows = watchlist.querySelectorAll(".watchRow");
+      rows.forEach(function(r){
+        var t = r.querySelector(".ticker").innerText.toUpperCase();
+        if (t.indexOf(q) !== -1) r.style.display = "";
+        else r.style.display = "none";
+      });
+    });
+  </script>
 </body>
 </html>
