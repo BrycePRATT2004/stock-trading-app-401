@@ -191,15 +191,178 @@ def buy():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    return render_template("buy.html")
+    from bson.objectid import ObjectId
+    user_id = session.get("user_id")
+    try:
+        uid = ObjectId(user_id)
+    except:
+        return redirect(url_for("login_page"))
+    
+    user = users_col.find_one({"_id": uid})
+    if not user:
+        return redirect(url_for("login_page"))
+    
+    cash = user.get("cash", 0.0)
+    return render_template("buy.html", cash=cash)
+
+
+@app.route("/buy_post", methods=["POST"])
+def buy_post():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    from bson.objectid import ObjectId
+    
+    user_id = session.get("user_id")
+    try:
+        uid = ObjectId(user_id)
+    except:
+        return redirect(url_for("login_page"))
+    
+    user = users_col.find_one({"_id": uid})
+    if not user:
+        return redirect(url_for("login_page"))
+
+    company = request.form.get("company", "").strip()
+    ticker = request.form.get("ticker", "").strip().upper()
+    try:
+        shares = int(request.form.get("shares", "0"))
+    except ValueError:
+        shares = 0
+    try:
+        price = float(request.form.get("price", "0"))
+    except ValueError:
+        price = 0.0
+
+    # Validate inputs
+    if not company or not ticker or shares <= 0 or price <= 0:
+        cash = user.get("cash", 0.0)
+        return render_template("buy.html", cash=cash, error="Please fill out all fields correctly.")
+
+    total_cost = shares * price
+    if user.get("cash", 0.0) < total_cost:
+        cash = user.get("cash", 0.0)
+        return render_template("buy.html", cash=cash, error=f"Insufficient funds. You need ${total_cost:.2f} but only have ${cash:.2f}.")
+
+    # Deduct cash and add to pending orders
+    users_col.update_one(
+        {"_id": uid},
+        {
+            "$inc": {"cash": -total_cost},
+            "$push": {
+                "orders": {
+                    "order_id": str(ObjectId()),
+                    "company": company,
+                    "ticker": ticker,
+                    "shares": shares,
+                    "price": price,
+                    "total_cost": total_cost,
+                    "status": "pending",
+                    "type": "buy",
+                    "created_at": datetime.utcnow()
+                }
+            }
+        }
+    )
+
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/sell")
 def sell():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
+<<<<<<< HEAD
     
     return render_template("sell.html")
+=======
+
+    from bson.objectid import ObjectId
+    user_id = session.get("user_id")
+    try:
+        uid = ObjectId(user_id)
+    except:
+        return redirect(url_for("login_page"))
+    
+    user = users_col.find_one({"_id": uid})
+    if not user:
+        return redirect(url_for("login_page"))
+    
+    portfolio = user.get("portfolio", {})
+    return render_template("sell.html", portfolio=portfolio)
+
+
+@app.route("/sell_post", methods=["POST"])
+def sell_post():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    from bson.objectid import ObjectId
+    
+    user_id = session.get("user_id")
+    try:
+        uid = ObjectId(user_id)
+    except:
+        return redirect(url_for("login_page"))
+    
+    user = users_col.find_one({"_id": uid})
+    if not user:
+        return redirect(url_for("login_page"))
+
+    ticker = request.form.get("ticker", "").strip().upper()
+    try:
+        shares = int(request.form.get("shares", "0"))
+    except ValueError:
+        shares = 0
+    try:
+        price = float(request.form.get("price", "0"))
+    except ValueError:
+        price = 0.0
+
+    # Validate inputs
+    portfolio = user.get("portfolio", {})
+    if not ticker or ticker not in portfolio:
+        return render_template("sell.html", portfolio=portfolio, error="Please select a valid stock.")
+    
+    holding = portfolio.get(ticker, {})
+    max_shares = holding.get("shares", 0)
+    
+    if shares <= 0 or price <= 0:
+        return render_template("sell.html", portfolio=portfolio, error="Please fill out all fields correctly.")
+    
+    if shares > max_shares:
+        return render_template("sell.html", portfolio=portfolio, error=f"You cannot sell more than {max_shares} shares of {ticker}.")
+
+    total_proceeds = shares * price
+    
+    # Update portfolio and add cash
+    holding["shares"] -= shares
+    if holding["shares"] == 0:
+        portfolio.pop(ticker, None)
+    
+    users_col.update_one(
+        {"_id": uid},
+        {
+            "$inc": {"cash": total_proceeds},
+            "$set": {"portfolio": portfolio},
+            "$push": {
+                "orders": {
+                    "order_id": str(ObjectId()),
+                    "company": holding.get("company", ""),
+                    "ticker": ticker,
+                    "shares": shares,
+                    "price": price,
+                    "total_proceeds": total_proceeds,
+                    "status": "executed",
+                    "type": "sell",
+                    "created_at": datetime.utcnow()
+                }
+            }
+        }
+    )
+
+    return redirect(url_for("dashboard"))
+>>>>>>> 67ed0446f4e7de8385e4a13deff4b037c7a67cb0
 
 @app.route("/wallet")
 def wallet():
