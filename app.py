@@ -1,8 +1,7 @@
-from decimal import Decimal
 from flask import Flask, render_template, redirect, url_for, request, session
 from datetime import datetime
 import os
-
+from bson import ObjectId
 import bcrypt
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -20,6 +19,7 @@ client = MongoClient(MONGO_URI)
 db = client["stock_trading_app_401"]
 users_col = db["users"]
 stocks_col = db["stocks"]
+
 # ----------------------------
 # Flask app
 # ----------------------------
@@ -29,15 +29,31 @@ app = Flask(__name__)
 # Put this in .env as SECRET_KEY=some_long_random_string
 app.secret_key = os.getenv("SECRET_KEY", "dev_only_change_me")
 
+
 # ----------------------------
+# Helpers
+# ----------------------------
+def get_current_user():
+    """Return the logged-in user's Mongo document, or None."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+    return users_col.find_one({"_id": ObjectId(user_id)})
+
+
+def get_current_cash(default: float = 0.0) -> float:
+    """Return logged-in user's cash as float (safe default)."""
+    user = get_current_user()
+    if not user:
+        return default
+    return float(user.get("cash", default))
+
+
+# ----------------------------
+# Classes (left as-is, but no longer used for cash)
 # ----------------------------
 class Account:
     pass
-    def __init__(self, cash):
-        self.cash = Decimal(cash)
-
-account = Account("1000.12")
-print(f"${account.cash:,.2f}")
 
 class User:
     pass
@@ -52,22 +68,11 @@ class GetPrices:
 # Routes
 # ----------------------------
 
-
-
-
-
-
-
-
-
-
-
-
-
 # Create Account page (your login.html)
 @app.route("/", methods=["GET"])
 def create_account_page():
     return render_template("login.html")
+
 
 # Register (Create Account) -> saves user in MongoDB
 @app.route("/register", methods=["POST"])
@@ -100,11 +105,13 @@ def register():
         "phone": phone,
         "password_hash": password_hash,  # stored as bytes
         "created_at": datetime.utcnow(),
-        "role" : "user",
+        "role": "user",
+        "cash": 1000.42
     })
 
     # After create account -> send to Login page
     return redirect(url_for("login_page"))
+
 
 # Login page (your register.html is the login UI)
 @app.route("/login", methods=["GET", "POST"])
@@ -138,6 +145,7 @@ def login_page():
     session["role"] = user.get("role", "user")
     return redirect(url_for("dashboard"))
 
+
 # Dashboard (protected)
 @app.route("/dashboard")
 def dashboard():
@@ -149,7 +157,12 @@ def dashboard():
     # ✅ pull stocks from Mongo
     stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
 
-    portfolio = {"cash": 10000.00, "stocks": {}}
+    # ✅ user's cash from Mongo (instead of hard-coded)
+    cash = get_current_cash(default=0.0)
+
+    # Keep these placeholders as-is if your template expects them,
+    # but set portfolio cash to real user cash so dashboard values can use it.
+    portfolio = {"cash": cash, "stocks": {}}
     total_invested = 0.00
     portfolio_value = portfolio["cash"]
     total_return = 0.00
@@ -163,8 +176,10 @@ def dashboard():
         portfolio_value=portfolio_value,
         total_return=total_return,
         trade_message=trade_message,
-        stocks=stocks  # ✅ pass to template
+        stocks=stocks,  # ✅ pass to template
+        cash=cash        # ✅ optional: use directly in dashboard.html
     )
+
 
 # Logout
 @app.route("/logout")
@@ -172,11 +187,13 @@ def logout():
     session.clear()
     return redirect(url_for("login_page"))
 
+
 # Quick Mongo test
 @app.route("/test-db")
 def test_db():
     client.admin.command("ping")
     return "✅ MongoDB connected (ping ok)"
+
 
 # ----------------------------
 # Additional pages (protected)
@@ -195,34 +212,62 @@ def buy():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
+    # ✅ user's cash from Mongo (instead of account.cash)
+    cash = get_current_cash(default=0.0)
+
     if request.method == "POST":
         # TODO: process order here (for now just pretend success)
-        return render_template("buy.html", cash=float(account.cash), success=True)
+        return render_template("buy.html", cash=cash, success=True)
 
-    return render_template("buy.html", cash=float(account.cash))
+    return render_template("buy.html", cash=cash)
 
 
 @app.route("/sell")
 def sell():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
-    
+
     return render_template("sell.html")
+
 
 @app.route("/wallet")
 def wallet():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    stock_value = Decimal("1250.00")   # placeholder for now
-    total_value = account.cash + stock_value
+    cash = get_current_cash(default=0.0)
+
+    stock_value = 1250.00  # placeholder
+    total_value = cash + stock_value
 
     return render_template(
         "wallet.html",
-        cash=account.cash,
+        cash=cash,
         stock_value=stock_value,
         total_value=total_value
     )
+
+
+@app.route("/wallet/deposit", methods=["POST"])
+def wallet_deposit():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    amount_raw = request.form.get("amount", "").strip()
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0:
+            raise ValueError()
+    except ValueError:
+        return redirect(url_for("wallet"))
+
+    users_col.update_one(
+        {"_id": ObjectId(session["user_id"])},
+        {"$inc": {"cash": amount}}
+    )
+
+    return redirect(url_for("wallet"))
 
 
 @app.route("/help")
@@ -231,7 +276,8 @@ def help_page():
         return redirect(url_for("login_page"))
 
     return render_template("help.html")
- 
+
+
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if "user_id" not in session:
@@ -277,6 +323,6 @@ def admin():
     stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
     return render_template("admin.html", stocks=stocks)
 
-    
+
 if __name__ == "__main__":
     app.run(debug=True)
