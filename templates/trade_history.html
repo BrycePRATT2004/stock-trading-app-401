@@ -1,12 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Trade History</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  <h1>Trade History</h1>
-  <p> Will show the trades a user has made since the account has been created</p>
+  <div class="container">
+    <h1>Trade History</h1>
 
-    <a href="/dashboard">Back to Dashboard</a>
+    {% if orders and orders|length > 0 %}
+      <table class="trade-history">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Company</th>
+            <th>Ticker</th>
+            <th>Shares</th>
+            <th>Price</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders|reverse %}
+            <tr>
+              <td>{{ o.created_at.strftime('%Y-%m-%d %H:%M:%S') if o.created_at else '' }}</td>
+              <td>{{ o.type }}</td>
+              <td>{{ o.company }}</td>
+              <td>{{ o.ticker }}</td>
+              <td>{{ o.shares }}</td>
+              <td>{{ '%.2f'|format(o.price) if o.price is not none else '' }}</td>
+              <td>{{ '%.2f'|format(o.total_proceeds if o.total_proceeds is defined else (o.shares*o.price if o.shares and o.price else 0)) }}</td>
+              <td>{{ o.status }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No trades yet. Your executed orders will appear here.</p>
+    {% endif %}
+
+    <p><a class="btn" href="{{ url_for('dashboard') }}">Back to Dashboard</a></p>
+  </div>
 </body>
 </html>
