@@ -182,8 +182,8 @@
       <strong>Available Cash:</strong> ${{ '%.2f' | format(cash) }}
     </div>
 
-    <form method="POST" action="{{ url_for('buy_post') }}" id="buyForm">
-      <div class="form-group">
+<form method="POST" action="{{ url_for('buy') }}" id="buyForm">
+        <div class="form-group">
         <label for="company">Company Name *</label>
         <input 
           type="text" 
