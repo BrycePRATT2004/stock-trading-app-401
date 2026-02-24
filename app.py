@@ -19,7 +19,7 @@ if not MONGO_URI:
 client = MongoClient(MONGO_URI)
 db = client["stock_trading_app_401"]
 users_col = db["users"]
-
+stocks_col = db["stocks"]
 # ----------------------------
 # Flask app
 # ----------------------------
@@ -99,7 +99,8 @@ def register():
         "email": email,
         "phone": phone,
         "password_hash": password_hash,  # stored as bytes
-        "created_at": datetime.utcnow()
+        "created_at": datetime.utcnow(),
+        "role" : "user",
     })
 
     # After create account -> send to Login page
@@ -134,7 +135,7 @@ def login_page():
     session["user_id"] = str(user["_id"])
     session["username"] = user.get("username", "Explorer")
     session["full_name"] = user.get("full_name", "")
-
+    session["role"] = user.get("role", "user")
     return redirect(url_for("dashboard"))
 
 # Dashboard (protected)
@@ -143,8 +144,10 @@ def dashboard():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    # Minimal placeholders so your dashboard template doesn't crash
     username = session.get("username", "Explorer")
+
+    # ✅ pull stocks from Mongo
+    stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
 
     portfolio = {"cash": 10000.00, "stocks": {}}
     total_invested = 0.00
@@ -159,7 +162,8 @@ def dashboard():
         total_invested=total_invested,
         portfolio_value=portfolio_value,
         total_return=total_return,
-        trade_message=trade_message
+        trade_message=trade_message,
+        stocks=stocks  # ✅ pass to template
     )
 
 # Logout
@@ -228,7 +232,50 @@ def help_page():
 
     return render_template("help.html")
  
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
 
+    if session.get("role") != "admin":
+        return "Forbidden", 403
+
+    if request.method == "POST":
+        ticker = request.form.get("ticker", "").strip().upper()
+        name = request.form.get("name", "").strip()
+        price_raw = request.form.get("price", "").strip()
+
+        # Validation
+        if not ticker or not name or not price_raw:
+            return render_template("admin.html", error="All fields are required.")
+
+        try:
+            price = float(price_raw)
+            if price <= 0:
+                raise ValueError()
+        except ValueError:
+            return render_template("admin.html", error="Price must be a positive number.")
+
+        # ✅ Create or update the stock (upsert)
+        stocks_col.update_one(
+            {"ticker": ticker},
+            {
+                "$set": {
+                    "ticker": ticker,
+                    "name": name,
+                    "price": price,
+                    "updated_at": datetime.utcnow()
+                },
+                "$setOnInsert": {"created_at": datetime.utcnow()}
+            },
+            upsert=True
+        )
+
+        return redirect(url_for("admin"))
+
+    # GET: show existing stocks on the page
+    stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
+    return render_template("admin.html", stocks=stocks)
 
     
 if __name__ == "__main__":

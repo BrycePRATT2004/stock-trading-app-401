@@ -347,54 +347,25 @@
         <div style="margin-top:14px; margin-bottom:8px; color:#666; font-size:12px;">
           Watchlist
         </div>
-
-        <div id="watchlist">
-          <div class="watchRow">
-            <div class="ticker">TSLA</div>
-            <div class="spark"></div>
-            <div>
-              <div class="price">$411.36</div>
-              <div class="pct bad">-1.46%</div>
-            </div>
-          </div>
-
-          <div class="watchRow">
-            <div class="ticker">NVDA</div>
-            <div class="spark"></div>
-            <div>
-              <div class="price">$185.92</div>
-              <div class="pct good">+1.70%</div>
-            </div>
-          </div>
-
-          <div class="watchRow">
-            <div class="ticker">AAPL</div>
-            <div class="spark"></div>
-            <div>
-              <div class="price">$265.35</div>
-              <div class="pct good">+3.74%</div>
-            </div>
-          </div>
-
-          <div class="watchRow">
-            <div class="ticker">LCID</div>
-            <div class="spark"></div>
-            <div>
-              <div class="price">$9.92</div>
-              <div class="pct bad">-3.48%</div>
-            </div>
-          </div>
-
-          <div class="watchRow">
-            <div class="ticker">AMZN</div>
-            <div class="spark"></div>
-            <div>
-              <div class="price">$201.11</div>
-              <div class="pct good">+1.17%</div>
-            </div>
-          </div>
+<div id="watchlist">
+  {% if stocks and stocks|length > 0 %}
+    {% for s in stocks %}
+      <div class="watchRow">
+        <div class="ticker">{{ s.ticker }}</div>
+        <div class="spark"></div>
+        <div>
+          <div class="price">${{ "%.2f"|format(s.price) }}</div>
+          <div class="pct" style="color:#666;">{{ s.name }}</div>
         </div>
       </div>
+    {% endfor %}
+  {% else %}
+    <div style="color:#d11a1a; font-size:12px; padding:10px;">
+      No stocks yet. Add some from the Admin page.
+    </div>
+  {% endif %}
+</div>
+        
 
     </div>
   </div>
