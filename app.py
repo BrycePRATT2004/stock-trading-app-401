@@ -19,6 +19,7 @@ client = MongoClient(MONGO_URI)
 db = client["stock_trading_app_401"]
 users_col = db["users"]
 stocks_col = db["stocks"]
+trades_col = db["trades"]
 
 # ----------------------------
 # Flask app
@@ -47,6 +48,14 @@ def get_current_cash(default: float = 0.0) -> float:
     if not user:
         return default
     return float(user.get("cash", default))
+
+
+def get_current_holdings() -> dict:
+    """Return logged-in user's stock holdings as dict {ticker: quantity}."""
+    user = get_current_user()
+    if not user:
+        return {}
+    return user.get("holdings", {})
 
 
 # ----------------------------
@@ -106,7 +115,8 @@ def register():
         "password_hash": password_hash,  # stored as bytes
         "created_at": datetime.utcnow(),
         "role": "user",
-        "cash": 1000.42
+        "cash": 1000.42,
+        "holdings": {}  # {ticker: quantity}
     })
 
     # After create account -> send to Login page
@@ -159,13 +169,26 @@ def dashboard():
 
     # ✅ user's cash from Mongo (instead of hard-coded)
     cash = get_current_cash(default=0.0)
+    holdings = get_current_holdings()
 
-    # Keep these placeholders as-is if your template expects them,
-    # but set portfolio cash to real user cash so dashboard values can use it.
-    portfolio = {"cash": cash, "stocks": {}}
+    # Calculate portfolio value
     total_invested = 0.00
-    portfolio_value = portfolio["cash"]
-    total_return = 0.00
+    portfolio_value = cash
+    portfolio_stocks = {}
+
+    for ticker, shares in holdings.items():
+        if shares > 0:
+            stock = stocks_col.find_one({"ticker": ticker})
+            if stock:
+                current_value = shares * stock.get("price", 0.0)
+                portfolio_value += current_value
+                portfolio_stocks[ticker] = shares
+                # For simplicity, we'll assume total_invested is the current value
+                total_invested += current_value
+
+    portfolio = {"cash": cash, "stocks": portfolio_stocks}
+    total_return = portfolio_value - total_invested  # This is simplistic
+
     trade_message = None
 
     return render_template(
@@ -204,7 +227,10 @@ def trade_history():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    return render_template("trade_history.html")
+    user_id = ObjectId(session["user_id"])
+    orders = list(trades_col.find({"user_id": user_id}).sort("created_at", -1))
+
+    return render_template("trade_history.html", orders=orders)
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -214,20 +240,134 @@ def buy():
 
     # ✅ user's cash from Mongo (instead of account.cash)
     cash = get_current_cash(default=0.0)
+    holdings = get_current_holdings()
 
     if request.method == "POST":
-        # TODO: process order here (for now just pretend success)
-        return render_template("buy.html", cash=cash, success=True)
+        company = request.form.get("company", "").strip()
+        ticker = request.form.get("ticker", "").strip().upper()
+        shares_raw = request.form.get("shares", "").strip()
+        price_raw = request.form.get("price", "").strip()
+
+        # Validation
+        try:
+            shares = int(shares_raw)
+            price = float(price_raw)
+            if shares <= 0 or price <= 0:
+                raise ValueError()
+        except ValueError:
+            return render_template("buy.html", cash=cash, error="Invalid shares or price.")
+
+        total_cost = shares * price
+
+        if total_cost > cash:
+            return render_template("buy.html", cash=cash, error="Insufficient funds.")
+
+        # Check if stock exists
+        stock = stocks_col.find_one({"ticker": ticker})
+        if not stock:
+            return render_template("buy.html", cash=cash, error="Stock not found. Please check the ticker.")
+
+        # Update user cash and holdings
+        user_id = ObjectId(session["user_id"])
+        users_col.update_one(
+            {"_id": user_id},
+            {
+                "$inc": {"cash": -total_cost},
+                "$inc": {f"holdings.{ticker}": shares}
+            }
+        )
+
+        # Record the trade
+        trades_col.insert_one({
+            "user_id": user_id,
+            "type": "buy",
+            "company": company,
+            "ticker": ticker,
+            "shares": shares,
+            "price": price,
+            "total_proceeds": total_cost,
+            "status": "completed",
+            "created_at": datetime.utcnow()
+        })
+
+        return render_template("buy.html", cash=cash - total_cost, success=True)
 
     return render_template("buy.html", cash=cash)
 
 
-@app.route("/sell")
+@app.route("/sell", methods=["GET"])
 def sell():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    return render_template("sell.html")
+    holdings = get_current_holdings()
+    portfolio = {}
+
+    for ticker, shares in holdings.items():
+        if shares > 0:
+            stock = stocks_col.find_one({"ticker": ticker})
+            if stock:
+                portfolio[ticker] = {
+                    "company": stock.get("name", ticker),
+                    "shares": shares
+                }
+
+    return render_template("sell.html", portfolio=portfolio)
+
+
+@app.route("/sell_post", methods=["POST"])
+def sell_post():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    holdings = get_current_holdings()
+    ticker = request.form.get("ticker", "").strip().upper()
+    shares_raw = request.form.get("shares", "").strip()
+    price_raw = request.form.get("price", "").strip()
+
+    # Validation
+    try:
+        shares = int(shares_raw)
+        price = float(price_raw)
+        if shares <= 0 or price <= 0:
+            raise ValueError()
+    except ValueError:
+        return redirect(url_for("sell"))
+
+    if ticker not in holdings or holdings[ticker] < shares:
+        return redirect(url_for("sell"))
+
+    # Get stock info
+    stock = stocks_col.find_one({"ticker": ticker})
+    if not stock:
+        return redirect(url_for("sell"))
+
+    total_proceeds = shares * price
+
+    # Update user cash and holdings
+    user_id = ObjectId(session["user_id"])
+    users_col.update_one(
+        {"_id": user_id},
+        {
+            "$inc": {"cash": total_proceeds},
+            "$inc": {f"holdings.{ticker}": -shares}
+        }
+    )
+
+    # Record the trade
+    trades_col.insert_one({
+        "user_id": user_id,
+        "type": "sell",
+        "company": stock.get("name", ticker),
+        "ticker": ticker,
+        "shares": shares,
+        "price": price,
+        "total_proceeds": total_proceeds,
+        "status": "completed",
+        "created_at": datetime.utcnow()
+    })
+
+    return redirect(url_for("sell"))
 
 
 @app.route("/wallet")
@@ -236,8 +376,15 @@ def wallet():
         return redirect(url_for("login_page"))
 
     cash = get_current_cash(default=0.0)
+    holdings = get_current_holdings()
 
-    stock_value = 1250.00  # placeholder
+    stock_value = 0.0
+    for ticker, shares in holdings.items():
+        if shares > 0:
+            stock = stocks_col.find_one({"ticker": ticker})
+            if stock:
+                stock_value += shares * stock.get("price", 0.0)
+
     total_value = cash + stock_value
 
     return render_template(
