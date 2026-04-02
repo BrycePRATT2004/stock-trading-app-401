@@ -256,6 +256,92 @@
     }
     .good{ color:#1a7f37; font-weight:bold; }
     .bad{ color:#b42318; font-weight:bold; }
+
+    /* Stock Ticker Section */
+    .tickerSection {
+      margin-top: 20px;
+      border: 1px solid #e7e2ff;
+      border-radius: 14px;
+      padding: 16px;
+      background: #f9f7ff;
+    }
+
+    .tickerSection h2 {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+      color: #3b2a86;
+      font-weight: bold;
+    }
+
+    .tickerTable {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .tickerTable thead {
+      background: #f4f1ff;
+      border-bottom: 2px solid #e7e2ff;
+    }
+
+    .tickerTable th {
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+      color: #3b2a86;
+      font-size: 13px;
+    }
+
+    .tickerTable td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    .tickerTable tr:last-child td {
+      border-bottom: none;
+    }
+
+    .tickerTable tr:hover {
+      background: #ece6ff;
+    }
+
+    .tickerSymbol {
+      font-weight: bold;
+      color: #3b2a86;
+      font-size: 14px;
+    }
+
+    .tickerPrice {
+      font-weight: bold;
+      color: #3b2a86;
+      text-align: right;
+    }
+
+    .tickerChange {
+      text-align: right;
+      font-weight: bold;
+    }
+
+    .tickerChange.positive {
+      color: #1a7f37;
+    }
+
+    .tickerChange.negative {
+      color: #b42318;
+    }
+
+    .tickerStats {
+      text-align: right;
+      color: #666;
+      font-size: 12px;
+    }
+
+    .tickerLoading {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+      font-size: 13px;
+    }
   </style>
 </head>
 
@@ -301,7 +387,11 @@
 
         <div class="balance">
         <h1 id="balance">${{ "%.2f"|format(cash) }}</h1>         
-        <div class="change">▲ $12.40 (0.82%) Today</div>
+        <div class="change {% if total_portfolio_change >= 0 %}good{% else %}bad{% endif %}">
+          {% if total_portfolio_change >= 0 %}▲{% else %}▼{% endif %}
+          ${{ "%.2f"|format(total_portfolio_change|abs) }}
+          ({{ "%.2f"|format(total_portfolio_change_pct|abs) }}%) Today
+        </div>
         </div>
 
         <div class="chartBox">
@@ -369,6 +459,16 @@
     </div>
   </div>
 
+  <!-- Stock Ticker Section -->
+  <div class="wrap">
+    <div class="tickerSection">
+      <h2>📊 Live Market Ticker</h2>
+      <div id="tickerContainer">
+        <div class="tickerLoading">Loading ticker data...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // time label just to look "live"
     function updateTime(){
@@ -405,6 +505,80 @@
         else r.style.display = "none";
       });
     });
+
+    // =============================================
+    // 📊 Stock Ticker Real-Time Updates
+    // =============================================
+    function renderTickerTable(tickerData) {
+      if (!tickerData || tickerData.length === 0) {
+        document.getElementById("tickerContainer").innerHTML = 
+          '<div class="tickerLoading">No stocks available. Add some from the Admin page.</div>';
+        return;
+      }
+
+      let html = `
+        <table class="tickerTable">
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th style="text-align: right;">Current Price</th>
+              <th style="text-align: right;">Daily Change</th>
+              <th style="text-align: right;">% Change</th>
+              <th style="text-align: right;">High</th>
+              <th style="text-align: right;">Low</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      tickerData.forEach(function(stock) {
+        const changeClass = stock.daily_change >= 0 ? 'positive' : 'negative';
+        const changeIcon = stock.daily_change >= 0 ? '▲' : '▼';
+        const absChange = Math.abs(stock.daily_change).toFixed(2);
+        const absPctChange = Math.abs(stock.daily_change_percent).toFixed(2);
+
+        html += `
+          <tr>
+            <td><span class="tickerSymbol">${stock.ticker}</span></td>
+            <td class="tickerPrice">$${stock.current_price.toFixed(2)}</td>
+            <td class="tickerChange ${changeClass}">
+              ${changeIcon} $${absChange}
+            </td>
+            <td class="tickerChange ${changeClass}">
+              ${changeIcon} ${absPctChange}%
+            </td>
+            <td class="tickerStats">$${stock.daily_high.toFixed(2)}</td>
+            <td class="tickerStats">$${stock.daily_low.toFixed(2)}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById("tickerContainer").innerHTML = html;
+    }
+
+    function updateTicker() {
+      fetch('/api/ticker')
+        .then(response => response.json())
+        .then(data => {
+          renderTickerTable(data);
+        })
+        .catch(error => {
+          console.error('Error fetching ticker data:', error);
+          document.getElementById("tickerContainer").innerHTML = 
+            '<div class="tickerLoading" style="color: #d32f2f;">Failed to load ticker data</div>';
+        });
+    }
+
+    // Load ticker data immediately on page load
+    updateTicker();
+
+    // Update ticker every 60 seconds (1 minute)
+    setInterval(updateTicker, 60000);
   </script>
 </body>
 </html>

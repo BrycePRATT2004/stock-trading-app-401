@@ -1,10 +1,11 @@
-from flask import Flask, render_template, redirect, url_for, request, session
+from flask import Flask, render_template, redirect, url_for, request, session, jsonify
 from datetime import datetime
 import os
 from bson import ObjectId
 import bcrypt
 from dotenv import load_dotenv
 from pymongo import MongoClient
+import random
 
 # ----------------------------
 # Mongo setup
@@ -32,8 +33,55 @@ app.secret_key = os.getenv("SECRET_KEY", "dev_only_change_me")
 
 
 # ----------------------------
-# Helpers
+# Stock Ticker System
 # ----------------------------
+# In-memory storage for ticker state (price, daily high/low, etc)
+ticker_state = {}
+
+def initialize_ticker_state():
+    """Initialize ticker state for all stocks from database."""
+    stocks = list(stocks_col.find({}, {"_id": 0}))
+    for stock in stocks:
+        ticker = stock.get("ticker")
+        if ticker:
+            if ticker not in ticker_state:
+                ticker_state[ticker] = {
+                    "ticker": ticker,
+                    "current_price": stock.get("price", 0.0),
+                    "opening_price": stock.get("price", 0.0),
+                    "daily_high": stock.get("price", 0.0),
+                    "daily_low": stock.get("price", 0.0),
+                    "daily_change": 0.0,
+                    "daily_change_percent": 0.0,
+                }
+
+def update_ticker_prices():
+    """Simulate random price movements for all stocks."""
+    for ticker in ticker_state:
+        state = ticker_state[ticker]
+        current_price = state["current_price"]
+        
+        # Random change: ±0.5% to ±2% per update
+        change_percent = random.uniform(-2, 2) / 100
+        new_price = current_price * (1 + change_percent)
+        new_price = round(new_price, 2)
+        
+        state["current_price"] = new_price
+        state["daily_high"] = max(state["daily_high"], new_price)
+        state["daily_low"] = min(state["daily_low"], new_price)
+        state["daily_change"] = round(new_price - state["opening_price"], 2)
+        state["daily_change_percent"] = round(
+            ((new_price - state["opening_price"]) / state["opening_price"]) * 100, 2
+        )
+
+def get_ticker_data():
+    """Return current ticker state for all stocks."""
+    if not ticker_state:
+        initialize_ticker_state()
+    return list(ticker_state.values())
+
+
+
 def get_current_user():
     """Return the logged-in user's Mongo document, or None."""
     user_id = session.get("user_id")
@@ -164,6 +212,10 @@ def dashboard():
 
     username = session.get("username", "Explorer")
 
+    # Initialize ticker state only if it hasn't been initialized yet
+    if not ticker_state:
+        initialize_ticker_state()
+
     # ✅ pull stocks from Mongo
     stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
 
@@ -175,19 +227,39 @@ def dashboard():
     total_invested = 0.00
     portfolio_value = cash
     portfolio_stocks = {}
+    total_opening_value = cash
+    total_portfolio_change = 0.0
 
     for ticker, shares in holdings.items():
         if shares > 0:
-            stock = stocks_col.find_one({"ticker": ticker})
-            if stock:
-                current_value = shares * stock.get("price", 0.0)
-                portfolio_value += current_value
-                portfolio_stocks[ticker] = shares
-                # For simplicity, we'll assume total_invested is the current value
-                total_invested += current_value
+            # Prefer ticker state if available (simulated real-time prices)
+            ticker_info = ticker_state.get(ticker)
+            if ticker_info:
+                current_price = float(ticker_info.get("current_price", 0.0))
+                opening_price = float(ticker_info.get("opening_price", 0.0))
+            else:
+                stock = stocks_col.find_one({"ticker": ticker})
+                current_price = float(stock.get("price", 0.0)) if stock else 0.0
+                opening_price = current_price
+
+            current_value = shares * current_price
+            opening_value = shares * opening_price
+
+            portfolio_value += current_value
+            total_invested += current_value
+            total_opening_value += opening_value
+            total_portfolio_change += current_value - opening_value
+
+            portfolio_stocks[ticker] = shares
+
+    # Percent change based on opening value (including cash pool)
+    if total_opening_value > 0:
+        total_portfolio_change_pct = (total_portfolio_change / total_opening_value) * 100
+    else:
+        total_portfolio_change_pct = 0.0
 
     portfolio = {"cash": cash, "stocks": portfolio_stocks}
-    total_return = portfolio_value - total_invested  # This is simplistic
+    total_return = portfolio_value - total_invested  # still available if needed
 
     trade_message = None
 
@@ -198,9 +270,11 @@ def dashboard():
         total_invested=total_invested,
         portfolio_value=portfolio_value,
         total_return=total_return,
+        total_portfolio_change=total_portfolio_change,
+        total_portfolio_change_pct=total_portfolio_change_pct,
         trade_message=trade_message,
-        stocks=stocks,  # ✅ pass to template
-        cash=cash        # ✅ optional: use directly in dashboard.html
+        stocks=stocks,
+        cash=cash
     )
 
 
@@ -471,5 +545,21 @@ def admin():
     return render_template("admin.html", stocks=stocks)
 
 
+# ----------------------------
+# API Endpoints (for real-time ticker)
+# ----------------------------
+
+@app.route("/api/ticker")
+def api_ticker():
+    """Return current ticker data for all stocks with simulated price movements."""
+    # Update prices for this request
+    update_ticker_prices()
+    
+    # Return ticker data
+    return jsonify(get_ticker_data())
+
+
 if __name__ == "__main__":
+    # Initialize ticker state when app starts
+    initialize_ticker_state()
     app.run(debug=True)
