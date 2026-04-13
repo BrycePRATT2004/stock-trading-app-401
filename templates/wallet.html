@@ -188,6 +188,67 @@
       color: #7c6aa8;
       margin-top: 8px;
     }
+
+    /* Withdraw Section */
+    .withdraw-card {
+      background: #f9f7ff;
+      border: 1px solid #e7e2ff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+
+    .withdraw-card h2 {
+      color: #3b2a86;
+      margin: 0 0 16px 0;
+      font-size: 18px;
+    }
+
+    .withdraw-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .withdraw-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #e7e2ff;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .withdraw-row input:focus {
+      outline: none;
+      border-color: #6d3cff;
+      box-shadow: 0 0 0 3px rgba(109, 60, 255, 0.1);
+    }
+
+    .withdraw-row button {
+      background: #d32f2f;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .withdraw-row button:hover {
+      background: #b71c1c;
+    }
+
+    .withdraw-row button:active {
+      transform: scale(0.98);
+    }
+
+    .withdraw-hint {
+      font-size: 12px;
+      color: #7c6aa8;
+      margin-top: 8px;
+    }
   </style>
 </head>
 
@@ -258,6 +319,25 @@
           <button type="submit">Deposit</button>
         </div>
         <div class="deposit-hint">Funds will be added to your cash balance instantly.</div>
+      </form>
+    </div>
+
+    <!-- Withdraw -->
+    <div class="withdraw-card">
+      <h2>Withdraw Money</h2>
+      <form action="/wallet/withdraw" method="POST">
+        <div class="withdraw-row">
+          <input
+            type="number"
+            name="amount"
+            step="0.01"
+            min="0.01"
+            placeholder="Enter amount"
+            required
+          />
+          <button type="submit">Withdraw</button>
+        </div>
+        <div class="withdraw-hint">Funds will be withdrawn from your cash balance. Max: ${{ "%.2f"|format(cash) }}</div>
       </form>
     </div>
 

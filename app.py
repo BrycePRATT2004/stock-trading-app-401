@@ -473,6 +473,33 @@ def wallet_deposit():
     return redirect(url_for("wallet"))
 
 
+@app.route("/wallet/withdraw", methods=["POST"])
+def wallet_withdraw():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    amount_raw = request.form.get("amount", "").strip()
+    cash = get_current_cash(default=0.0)
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0:
+            raise ValueError()
+    except ValueError:
+        return redirect(url_for("wallet"))
+
+    # Check if user has sufficient funds
+    if amount > cash:
+        return redirect(url_for("wallet"))
+
+    users_col.update_one(
+        {"_id": ObjectId(session["user_id"])},
+        {"$inc": {"cash": -amount}}
+    )
+
+    return redirect(url_for("wallet"))
+
+
 @app.route("/help")
 def help_page():
     if "user_id" not in session:
