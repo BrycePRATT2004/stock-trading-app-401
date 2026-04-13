@@ -127,7 +127,6 @@
     }
     .balance .change{
       font-size:13px;
-      color:#1a7f37;
       font-weight:bold;
     }
 
@@ -183,8 +182,15 @@
       border-top:1px solid #eee;
       display:flex;
       justify-content:space-between;
+      align-items:center;
       color:#444;
       font-size:14px;
+    }
+
+    .buyingPower span {
+      font-size:20px;
+      font-weight:bold;
+      color:#111;
     }
 
     /* right side panel */
@@ -232,7 +238,6 @@
       overflow:hidden;
     }
 
-    /* simple line in spark */
     .spark:after{
       content:"";
       position:absolute;
@@ -322,13 +327,8 @@
       font-weight: bold;
     }
 
-    .tickerChange.positive {
-      color: #1a7f37;
-    }
-
-    .tickerChange.negative {
-      color: #b42318;
-    }
+    .tickerChange.positive { color: #1a7f37; }
+    .tickerChange.negative { color: #b42318; }
 
     .tickerStats {
       text-align: right;
@@ -341,6 +341,18 @@
       color: #666;
       padding: 20px;
       font-size: 13px;
+    }
+
+    .market-closed-banner {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      color: #856404;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      display: none;
     }
   </style>
 </head>
@@ -360,12 +372,12 @@
     </div>
 
     <div class="nav">
-  <a href="/trade-history"><button type="button">Trade History</button></a>
-  <a href="/buy"><button type="button">Buy</button></a>
-  <a href="/sell"><button type="button">Sell</button></a>
-  <a href="/wallet"><button type="button">Wallet</button></a>
-  <a href="/help"><button type="button">Help</button></a>
-</div>
+      <a href="/trade-history"><button type="button">Trade History</button></a>
+      <a href="/buy"><button type="button">Buy</button></a>
+      <a href="/sell"><button type="button">Sell</button></a>
+      <a href="/wallet"><button type="button">Wallet</button></a>
+      <a href="/help"><button type="button">Help</button></a>
+    </div>
   </div>
 
   <div class="wrap">
@@ -379,25 +391,20 @@
               <option>Individual</option>
             </select>
           </div>
-
-          <div style="color:#666;font-size:12px;">
-            (static page for now)
-          </div>
+          <div style="color:#666;font-size:12px;">(static page for now)</div>
         </div>
 
         <div class="balance">
-        <h1 id="balance">${{ "%.2f"|format(cash) }}</h1>         
-        <div class="change {% if total_portfolio_change >= 0 %}good{% else %}bad{% endif %}">
-          {% if total_portfolio_change >= 0 %}▲{% else %}▼{% endif %}
-          ${{ "%.2f"|format(total_portfolio_change|abs) }}
-          ({{ "%.2f"|format(total_portfolio_change_pct|abs) }}%) Today
-        </div>
+          <h1>${{ "%.2f"|format(cash) }}</h1>
+          <div class="change {% if total_portfolio_change >= 0 %}good{% else %}bad{% endif %}">
+            {% if total_portfolio_change >= 0 %}▲{% else %}▼{% endif %}
+            ${{ "%.2f"|format(total_portfolio_change|abs) }}
+            ({{ "%.2f"|format(total_portfolio_change_pct|abs) }}%) Today
+          </div>
         </div>
 
         <div class="chartBox">
           <div class="chartTime" id="timeLabel">2:03 PM</div>
-
-          <!-- basic chart placeholder -->
           <svg viewBox="0 0 1000 300" width="100%" height="100%" preserveAspectRatio="none">
             <path d="M0 200 C 140 170, 250 220, 380 175 C 520 130, 630 160, 740 115 C 860 70, 930 100, 1000 85"
                   fill="none" stroke="#6d3cff" stroke-width="5" stroke-linecap="round" />
@@ -417,7 +424,8 @@
 
         <div class="buyingPower">
           <div>Buying power</div>
-<h1 id="balance">${{ "%.2f"|format(cash) }}</h1>        </div>
+          <span>${{ "%.2f"|format(cash) }}</span>
+        </div>
       </div>
 
       <!-- right side -->
@@ -436,33 +444,34 @@
         <div style="margin-top:14px; margin-bottom:8px; color:#666; font-size:12px;">
           Watchlist
         </div>
-<div id="watchlist">
-  {% if stocks and stocks|length > 0 %}
-    {% for s in stocks %}
-      <div class="watchRow">
-        <div class="ticker">{{ s.ticker }}</div>
-        <div class="spark"></div>
-        <div>
-          <div class="price">${{ "%.2f"|format(s.price) }}</div>
-          <div class="pct" style="color:#666;">{{ s.name }}</div>
+
+        <div id="watchlist">
+          {% if stocks and stocks|length > 0 %}
+            {% for s in stocks %}
+              <div class="watchRow" data-ticker="{{ s.ticker }}">
+                <div class="ticker">{{ s.ticker }}</div>
+                <div class="spark"></div>
+                <div>
+                  <div class="price">${{ "%.2f"|format(s.price) }}</div>
+                  <div class="pct" style="color:#666;">{{ s.name }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div style="color:#d11a1a; font-size:12px; padding:10px;">
+              No stocks yet. Add some from the Admin page.
+            </div>
+          {% endif %}
         </div>
       </div>
-    {% endfor %}
-  {% else %}
-    <div style="color:#d11a1a; font-size:12px; padding:10px;">
-      No stocks yet. Add some from the Admin page.
     </div>
-  {% endif %}
-</div>
-        
 
-    </div>
-  </div>
-
-  <!-- Stock Ticker Section -->
-  <div class="wrap">
+    <!-- Stock Ticker Section -->
     <div class="tickerSection">
-      <h2>📊 Live Market Ticker</h2>
+      <h2 id="tickerHeader">Live Market Ticker</h2>
+      <div id="marketClosedBanner" class="market-closed-banner">
+        Market is currently closed. Prices shown are from last close. Trading hours: Mon–Fri, 9:00 AM – 4:00 PM ET.
+      </div>
       <div id="tickerContainer">
         <div class="tickerLoading">Loading ticker data...</div>
       </div>
@@ -470,7 +479,7 @@
   </div>
 
   <script>
-    // time label just to look "live"
+    // Time label
     function updateTime(){
       var d = new Date();
       var hrs = d.getHours() % 12;
@@ -483,7 +492,7 @@
     updateTime();
     setInterval(updateTime, 15000);
 
-    // range button active (UI only)
+    // Range button active state
     var btns = document.querySelectorAll(".rangeBtn");
     btns.forEach(function(btn){
       btn.addEventListener("click", function(){
@@ -492,26 +501,20 @@
       });
     });
 
-    // search filter on right watchlist (UI only)
+    // Search filter on watchlist
     var searchInput = document.getElementById("searchInput");
-    var watchlist = document.getElementById("watchlist");
-
     searchInput.addEventListener("input", function(){
       var q = searchInput.value.toUpperCase().trim();
-      var rows = watchlist.querySelectorAll(".watchRow");
-      rows.forEach(function(r){
+      document.querySelectorAll(".watchRow").forEach(function(r){
         var t = r.querySelector(".ticker").innerText.toUpperCase();
-        if (t.indexOf(q) !== -1) r.style.display = "";
-        else r.style.display = "none";
+        r.style.display = t.indexOf(q) !== -1 ? "" : "none";
       });
     });
 
-    // =============================================
-    // 📊 Stock Ticker Real-Time Updates
-    // =============================================
+    // Render ticker table
     function renderTickerTable(tickerData) {
       if (!tickerData || tickerData.length === 0) {
-        document.getElementById("tickerContainer").innerHTML = 
+        document.getElementById("tickerContainer").innerHTML =
           '<div class="tickerLoading">No stocks available. Add some from the Admin page.</div>';
         return;
       }
@@ -521,11 +524,11 @@
           <thead>
             <tr>
               <th>Ticker</th>
-              <th style="text-align: right;">Current Price</th>
-              <th style="text-align: right;">Daily Change</th>
-              <th style="text-align: right;">% Change</th>
-              <th style="text-align: right;">High</th>
-              <th style="text-align: right;">Low</th>
+              <th style="text-align:right;">Current Price</th>
+              <th style="text-align:right;">Daily Change</th>
+              <th style="text-align:right;">% Change</th>
+              <th style="text-align:right;">High</th>
+              <th style="text-align:right;">Low</th>
             </tr>
           </thead>
           <tbody>
@@ -541,46 +544,56 @@
           <tr>
             <td><span class="tickerSymbol">${stock.ticker}</span></td>
             <td class="tickerPrice">$${stock.current_price.toFixed(2)}</td>
-            <td class="tickerChange ${changeClass}">
-              ${changeIcon} $${absChange}
-            </td>
-            <td class="tickerChange ${changeClass}">
-              ${changeIcon} ${absPctChange}%
-            </td>
+            <td class="tickerChange ${changeClass}">${changeIcon} $${absChange}</td>
+            <td class="tickerChange ${changeClass}">${changeIcon} ${absPctChange}%</td>
             <td class="tickerStats">$${stock.daily_high.toFixed(2)}</td>
             <td class="tickerStats">$${stock.daily_low.toFixed(2)}</td>
           </tr>
         `;
       });
 
-      html += `
-          </tbody>
-        </table>
-      `;
-
+      html += `</tbody></table>`;
       document.getElementById("tickerContainer").innerHTML = html;
     }
 
+    // Update watchlist prices on the right side
+    function updateWatchlist(tickerData) {
+      tickerData.forEach(function(stock) {
+        const row = document.querySelector(`.watchRow[data-ticker="${stock.ticker}"]`);
+        if (row) {
+          const priceEl = row.querySelector('.price');
+          if (priceEl) priceEl.innerText = '$' + stock.current_price.toFixed(2);
+        }
+      });
+    }
+
+    // Main fetch function
     function updateTicker() {
       fetch('/api/ticker')
         .then(response => response.json())
-       .then(data => {
-      renderTickerTable(data.stocks);
-  // optional: show market status
-  const header = document.querySelector('.tickerSection h2');
-  header.textContent = data.market_open ? '📊 Live Market Ticker' : '📊 Live Market Ticker — Market Closed';
-})
+        .then(data => {
+          renderTickerTable(data.stocks);
+          updateWatchlist(data.stocks);
+
+          // Market open/closed banner
+          const banner = document.getElementById('marketClosedBanner');
+          const header = document.getElementById('tickerHeader');
+          if (data.market_open) {
+            banner.style.display = 'none';
+            header.textContent = 'Live Market Ticker';
+          } else {
+            banner.style.display = 'block';
+            header.textContent = 'Live Market Ticker — Market Closed';
+          }
+        })
         .catch(error => {
           console.error('Error fetching ticker data:', error);
-          document.getElementById("tickerContainer").innerHTML = 
-            '<div class="tickerLoading" style="color: #d32f2f;">Failed to load ticker data</div>';
+          document.getElementById("tickerContainer").innerHTML =
+            '<div class="tickerLoading" style="color:#d32f2f;">Failed to load ticker data</div>';
         });
     }
 
-    // Load ticker data immediately on page load
     updateTicker();
-
-    // Update ticker every 60 seconds (1 minute)
     setInterval(updateTicker, 5000);
   </script>
 </body>

@@ -38,7 +38,7 @@ ET = ZoneInfo("America/New_York")
 
 def is_market_open():
     now = datetime.now(ET)
-    if now.weekday() >= 5:  # Saturday=5, Sunday=6
+    if now.weekday() >= 5:
         return False
     return 9 <= now.hour < 16
 
@@ -81,7 +81,6 @@ def update_ticker_prices():
                 )
 
 def reset_opening_prices():
-    """Called at market open each day to reset daily stats."""
     with ticker_lock:
         for ticker in ticker_state:
             state = ticker_state[ticker]
@@ -97,26 +96,24 @@ def get_ticker_data():
         return list(ticker_state.values())
 
 # ----------------------------
-# Background price update thread
+# Background price update thread (runs 24/7)
 # ----------------------------
-last_market_state = None  # track open/closed transitions
+last_market_state = None
 
 def price_update_loop():
     global last_market_state
     while True:
-        open_now = is_market_open()
+        if not ticker_state:
+            initialize_ticker_state()
 
-        # Reset opening prices when market transitions from closed -> open
+        # Reset opening prices when market transitions closed -> open
+        open_now = is_market_open()
         if open_now and last_market_state is False:
             reset_opening_prices()
-
         last_market_state = open_now
 
-        if open_now:
-            if not ticker_state:
-                initialize_ticker_state()
-            update_ticker_prices()
-
+        # Always update prices regardless of market hours
+        update_ticker_prices()
         time.sleep(5)
 
 def start_price_thread():
@@ -319,6 +316,10 @@ def buy():
     cash = get_current_cash(default=0.0)
 
     if request.method == "POST":
+        # Block trading outside market hours
+        if not is_market_open():
+            return render_template("buy.html", cash=cash, error="Market is closed. Trading hours are Mon–Fri, 9:00 AM – 4:00 PM ET.")
+
         company = request.form.get("company", "").strip()
         ticker = request.form.get("ticker", "").strip().upper()
         shares_raw = request.form.get("shares", "").strip()
@@ -388,6 +389,10 @@ def sell():
 def sell_post():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
+
+    # Block trading outside market hours
+    if not is_market_open():
+        return redirect(url_for("sell"))
 
     holdings = get_current_holdings()
     ticker = request.form.get("ticker", "").strip().upper()
@@ -512,7 +517,6 @@ def admin():
             upsert=True
         )
 
-        # Add new stock to ticker_state immediately
         with ticker_lock:
             if ticker not in ticker_state:
                 ticker_state[ticker] = {
