@@ -6,6 +6,9 @@ import bcrypt
 from dotenv import load_dotenv
 from pymongo import MongoClient
 import random
+import threading
+import time
+from zoneinfo import ZoneInfo
 
 # ----------------------------
 # Mongo setup
@@ -26,88 +29,120 @@ trades_col = db["trades"]
 # Flask app
 # ----------------------------
 app = Flask(__name__)
-
-# Needed for sessions (login persistence)
-# Put this in .env as SECRET_KEY=some_long_random_string
 app.secret_key = os.getenv("SECRET_KEY", "dev_only_change_me")
 
+# ----------------------------
+# Market Hours
+# ----------------------------
+ET = ZoneInfo("America/New_York")
+
+def is_market_open():
+    now = datetime.now(ET)
+    if now.weekday() >= 5:  # Saturday=5, Sunday=6
+        return False
+    return 9 <= now.hour < 16
 
 # ----------------------------
 # Stock Ticker System
 # ----------------------------
-# In-memory storage for ticker state (price, daily high/low, etc)
 ticker_state = {}
+ticker_lock = threading.Lock()
 
 def initialize_ticker_state():
-    """Initialize ticker state for all stocks from database."""
     stocks = list(stocks_col.find({}, {"_id": 0}))
     for stock in stocks:
         ticker = stock.get("ticker")
-        if ticker:
-            if ticker not in ticker_state:
-                ticker_state[ticker] = {
-                    "ticker": ticker,
-                    "current_price": stock.get("price", 0.0),
-                    "opening_price": stock.get("price", 0.0),
-                    "daily_high": stock.get("price", 0.0),
-                    "daily_low": stock.get("price", 0.0),
-                    "daily_change": 0.0,
-                    "daily_change_percent": 0.0,
-                }
+        if ticker and ticker not in ticker_state:
+            price = stock.get("price", 0.0)
+            ticker_state[ticker] = {
+                "ticker": ticker,
+                "current_price": price,
+                "opening_price": price,
+                "daily_high": price,
+                "daily_low": price,
+                "daily_change": 0.0,
+                "daily_change_percent": 0.0,
+            }
 
 def update_ticker_prices():
-    """Simulate random price movements for all stocks."""
-    for ticker in ticker_state:
-        state = ticker_state[ticker]
-        current_price = state["current_price"]
-        
-        # Random change: ±0.5% to ±2% per update
-        change_percent = random.uniform(-2, 2) / 100
-        new_price = current_price * (1 + change_percent)
-        new_price = round(new_price, 2)
-        
-        state["current_price"] = new_price
-        state["daily_high"] = max(state["daily_high"], new_price)
-        state["daily_low"] = min(state["daily_low"], new_price)
-        state["daily_change"] = round(new_price - state["opening_price"], 2)
-        state["daily_change_percent"] = round(
-            ((new_price - state["opening_price"]) / state["opening_price"]) * 100, 2
-        )
+    with ticker_lock:
+        for ticker in ticker_state:
+            state = ticker_state[ticker]
+            current_price = state["current_price"]
+            change_percent = random.uniform(-2, 2) / 100
+            new_price = max(0.01, round(current_price * (1 + change_percent), 2))
+            state["current_price"] = new_price
+            state["daily_high"] = max(state["daily_high"], new_price)
+            state["daily_low"] = min(state["daily_low"], new_price)
+            state["daily_change"] = round(new_price - state["opening_price"], 2)
+            if state["opening_price"] > 0:
+                state["daily_change_percent"] = round(
+                    ((new_price - state["opening_price"]) / state["opening_price"]) * 100, 2
+                )
+
+def reset_opening_prices():
+    """Called at market open each day to reset daily stats."""
+    with ticker_lock:
+        for ticker in ticker_state:
+            state = ticker_state[ticker]
+            price = state["current_price"]
+            state["opening_price"] = price
+            state["daily_high"] = price
+            state["daily_low"] = price
+            state["daily_change"] = 0.0
+            state["daily_change_percent"] = 0.0
 
 def get_ticker_data():
-    """Return current ticker state for all stocks."""
-    if not ticker_state:
-        initialize_ticker_state()
-    return list(ticker_state.values())
+    with ticker_lock:
+        return list(ticker_state.values())
 
+# ----------------------------
+# Background price update thread
+# ----------------------------
+last_market_state = None  # track open/closed transitions
 
+def price_update_loop():
+    global last_market_state
+    while True:
+        open_now = is_market_open()
+
+        # Reset opening prices when market transitions from closed -> open
+        if open_now and last_market_state is False:
+            reset_opening_prices()
+
+        last_market_state = open_now
+
+        if open_now:
+            if not ticker_state:
+                initialize_ticker_state()
+            update_ticker_prices()
+
+        time.sleep(5)
+
+def start_price_thread():
+    t = threading.Thread(target=price_update_loop, daemon=True)
+    t.start()
 
 def get_current_user():
-    """Return the logged-in user's Mongo document, or None."""
     user_id = session.get("user_id")
     if not user_id:
         return None
     return users_col.find_one({"_id": ObjectId(user_id)})
 
-
 def get_current_cash(default: float = 0.0) -> float:
-    """Return logged-in user's cash as float (safe default)."""
     user = get_current_user()
     if not user:
         return default
     return float(user.get("cash", default))
 
-
 def get_current_holdings() -> dict:
-    """Return logged-in user's stock holdings as dict {ticker: quantity}."""
     user = get_current_user()
     if not user:
         return {}
     return user.get("holdings", {})
 
-
 # ----------------------------
-# Classes (left as-is, but no longer used for cash)
+# Classes (unused but kept)
 # ----------------------------
 class Account:
     pass
@@ -125,13 +160,11 @@ class GetPrices:
 # Routes
 # ----------------------------
 
-# Create Account page (your login.html)
 @app.route("/", methods=["GET"])
 def create_account_page():
     return render_template("login.html")
 
 
-# Register (Create Account) -> saves user in MongoDB
 @app.route("/register", methods=["POST"])
 def register():
     full_name = request.form.get("full_name", "").strip()
@@ -140,19 +173,16 @@ def register():
     password  = request.form.get("password", "")
     phone     = request.form.get("phone", "").strip()
 
-    # Basic validation
     if not all([full_name, username, email, password, phone]):
         return render_template("login.html", error="Please fill out all fields.")
 
     if len(password) < 6:
         return render_template("login.html", error="Password must be at least 6 characters.")
 
-    # Check duplicates
     existing = users_col.find_one({"$or": [{"username": username}, {"email": email}]})
     if existing:
         return render_template("login.html", error="Username or email already exists. Try another.")
 
-    # Hash password
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
     users_col.insert_one({
@@ -160,24 +190,21 @@ def register():
         "username": username,
         "email": email,
         "phone": phone,
-        "password_hash": password_hash,  # stored as bytes
+        "password_hash": password_hash,
         "created_at": datetime.utcnow(),
         "role": "user",
         "cash": 1000.42,
-        "holdings": {}  # {ticker: quantity}
+        "holdings": {}
     })
 
-    # After create account -> send to Login page
     return redirect(url_for("login_page"))
 
 
-# Login page (your register.html is the login UI)
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     if request.method == "GET":
         return render_template("register.html")
 
-    # POST: authenticate
     username = request.form.get("username", "").strip().lower()
     password = request.form.get("password", "")
 
@@ -192,11 +219,9 @@ def login_page():
     if not stored_hash:
         return render_template("register.html", error="Account error: missing password hash.")
 
-    # bcrypt check
     if not bcrypt.checkpw(password.encode("utf-8"), stored_hash):
         return render_template("register.html", error="Invalid username or password.")
 
-    # ✅ success: create session
     session["user_id"] = str(user["_id"])
     session["username"] = user.get("username", "Explorer")
     session["full_name"] = user.get("full_name", "")
@@ -204,26 +229,16 @@ def login_page():
     return redirect(url_for("dashboard"))
 
 
-# Dashboard (protected)
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
     username = session.get("username", "Explorer")
-
-    # Initialize ticker state only if it hasn't been initialized yet
-    if not ticker_state:
-        initialize_ticker_state()
-
-    # ✅ pull stocks from Mongo
     stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
-
-    # ✅ user's cash from Mongo (instead of hard-coded)
     cash = get_current_cash(default=0.0)
     holdings = get_current_holdings()
 
-    # Calculate portfolio value
     total_invested = 0.00
     portfolio_value = cash
     portfolio_stocks = {}
@@ -232,8 +247,8 @@ def dashboard():
 
     for ticker, shares in holdings.items():
         if shares > 0:
-            # Prefer ticker state if available (simulated real-time prices)
-            ticker_info = ticker_state.get(ticker)
+            with ticker_lock:
+                ticker_info = ticker_state.get(ticker)
             if ticker_info:
                 current_price = float(ticker_info.get("current_price", 0.0))
                 opening_price = float(ticker_info.get("opening_price", 0.0))
@@ -244,23 +259,19 @@ def dashboard():
 
             current_value = shares * current_price
             opening_value = shares * opening_price
-
             portfolio_value += current_value
             total_invested += current_value
             total_opening_value += opening_value
             total_portfolio_change += current_value - opening_value
-
             portfolio_stocks[ticker] = shares
 
-    # Percent change based on opening value (including cash pool)
     if total_opening_value > 0:
         total_portfolio_change_pct = (total_portfolio_change / total_opening_value) * 100
     else:
         total_portfolio_change_pct = 0.0
 
     portfolio = {"cash": cash, "stocks": portfolio_stocks}
-    total_return = portfolio_value - total_invested  # still available if needed
-
+    total_return = portfolio_value - total_invested
     trade_message = None
 
     return render_template(
@@ -278,23 +289,17 @@ def dashboard():
     )
 
 
-# Logout
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login_page"))
 
 
-# Quick Mongo test
 @app.route("/test-db")
 def test_db():
     client.admin.command("ping")
     return "✅ MongoDB connected (ping ok)"
 
-
-# ----------------------------
-# Additional pages (protected)
-# ----------------------------
 
 @app.route("/trade-history")
 def trade_history():
@@ -303,7 +308,6 @@ def trade_history():
 
     user_id = ObjectId(session["user_id"])
     orders = list(trades_col.find({"user_id": user_id}).sort("created_at", -1))
-
     return render_template("trade_history.html", orders=orders)
 
 
@@ -312,9 +316,7 @@ def buy():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    # ✅ user's cash from Mongo (instead of account.cash)
     cash = get_current_cash(default=0.0)
-    holdings = get_current_holdings()
 
     if request.method == "POST":
         company = request.form.get("company", "").strip()
@@ -322,7 +324,6 @@ def buy():
         shares_raw = request.form.get("shares", "").strip()
         price_raw = request.form.get("price", "").strip()
 
-        # Validation
         try:
             shares = int(shares_raw)
             price = float(price_raw)
@@ -336,22 +337,16 @@ def buy():
         if total_cost > cash:
             return render_template("buy.html", cash=cash, error="Insufficient funds.")
 
-        # Check if stock exists
         stock = stocks_col.find_one({"ticker": ticker})
         if not stock:
-            return render_template("buy.html", cash=cash, error="Stock not found. Please check the ticker.")
+            return render_template("buy.html", cash=cash, error="Stock not found.")
 
-        # Update user cash and holdings
         user_id = ObjectId(session["user_id"])
         users_col.update_one(
             {"_id": user_id},
-            {
-                "$inc": {"cash": -total_cost},
-                "$inc": {f"holdings.{ticker}": shares}
-            }
+            {"$inc": {"cash": -total_cost, f"holdings.{ticker}": shares}}
         )
 
-        # Record the trade
         trades_col.insert_one({
             "user_id": user_id,
             "type": "buy",
@@ -399,7 +394,6 @@ def sell_post():
     shares_raw = request.form.get("shares", "").strip()
     price_raw = request.form.get("price", "").strip()
 
-    # Validation
     try:
         shares = int(shares_raw)
         price = float(price_raw)
@@ -411,24 +405,18 @@ def sell_post():
     if ticker not in holdings or holdings[ticker] < shares:
         return redirect(url_for("sell"))
 
-    # Get stock info
     stock = stocks_col.find_one({"ticker": ticker})
     if not stock:
         return redirect(url_for("sell"))
 
     total_proceeds = shares * price
-
-    # Update user cash and holdings
     user_id = ObjectId(session["user_id"])
+
     users_col.update_one(
         {"_id": user_id},
-        {
-            "$inc": {"cash": total_proceeds},
-            "$inc": {f"holdings.{ticker}": -shares}
-        }
+        {"$inc": {"cash": total_proceeds, f"holdings.{ticker}": -shares}}
     )
 
-    # Record the trade
     trades_col.insert_one({
         "user_id": user_id,
         "type": "sell",
@@ -460,13 +448,7 @@ def wallet():
                 stock_value += shares * stock.get("price", 0.0)
 
     total_value = cash + stock_value
-
-    return render_template(
-        "wallet.html",
-        cash=cash,
-        stock_value=stock_value,
-        total_value=total_value
-    )
+    return render_template("wallet.html", cash=cash, stock_value=stock_value, total_value=total_value)
 
 
 @app.route("/wallet/deposit", methods=["POST"])
@@ -495,7 +477,6 @@ def wallet_deposit():
 def help_page():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
-
     return render_template("help.html")
 
 
@@ -512,7 +493,6 @@ def admin():
         name = request.form.get("name", "").strip()
         price_raw = request.form.get("price", "").strip()
 
-        # Validation
         if not ticker or not name or not price_raw:
             return render_template("admin.html", error="All fields are required.")
 
@@ -523,43 +503,48 @@ def admin():
         except ValueError:
             return render_template("admin.html", error="Price must be a positive number.")
 
-        # ✅ Create or update the stock (upsert)
         stocks_col.update_one(
             {"ticker": ticker},
             {
-                "$set": {
-                    "ticker": ticker,
-                    "name": name,
-                    "price": price,
-                    "updated_at": datetime.utcnow()
-                },
+                "$set": {"ticker": ticker, "name": name, "price": price, "updated_at": datetime.utcnow()},
                 "$setOnInsert": {"created_at": datetime.utcnow()}
             },
             upsert=True
         )
 
+        # Add new stock to ticker_state immediately
+        with ticker_lock:
+            if ticker not in ticker_state:
+                ticker_state[ticker] = {
+                    "ticker": ticker,
+                    "current_price": price,
+                    "opening_price": price,
+                    "daily_high": price,
+                    "daily_low": price,
+                    "daily_change": 0.0,
+                    "daily_change_percent": 0.0,
+                }
+
         return redirect(url_for("admin"))
 
-    # GET: show existing stocks on the page
     stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
     return render_template("admin.html", stocks=stocks)
 
 
 # ----------------------------
-# API Endpoints (for real-time ticker)
+# API Endpoints
 # ----------------------------
 
 @app.route("/api/ticker")
 def api_ticker():
-    """Return current ticker data for all stocks with simulated price movements."""
-    # Update prices for this request
-    update_ticker_prices()
-    
-    # Return ticker data
-    return jsonify(get_ticker_data())
+    data = get_ticker_data()
+    return jsonify({
+        "market_open": is_market_open(),
+        "stocks": data
+    })
 
 
 if __name__ == "__main__":
-    # Initialize ticker state when app starts
     initialize_ticker_state()
+    start_price_thread()
     app.run(debug=True)

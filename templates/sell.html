@@ -86,6 +86,12 @@
       box-shadow: 0 0 0 3px rgba(109, 60, 255, 0.1);
     }
 
+    input[readonly] {
+      background: #f0eaff;
+      color: #5a3eaa;
+      cursor: not-allowed;
+    }
+
     .info-box {
       background: #ece6ff;
       border: 1px solid #d9ceff;
@@ -152,6 +158,12 @@
       margin-top: 4px;
     }
 
+    .stock-hint {
+      font-size: 12px;
+      color: #7c6aa8;
+      margin-top: 4px;
+    }
+
     .no-holdings {
       background: #fff3cd;
       border: 1px solid #ffc107;
@@ -190,7 +202,7 @@
       <form method="POST" action="{{ url_for('sell_post') }}" id="sellForm">
         <div class="form-group">
           <label for="ticker">Select Stock to Sell *</label>
-          <select id="ticker" name="ticker" required onchange="updateHoldingInfo()">
+          <select id="ticker" name="ticker" required>
             <option value="">-- Select a stock --</option>
             {% for ticker, info in portfolio.items() %}
               <option value="{{ ticker }}" data-shares="{{ info.shares }}" data-company="{{ info.company }}">
@@ -198,50 +210,51 @@
               </option>
             {% endfor %}
           </select>
+          <span class="stock-hint" id="stockHint"></span>
         </div>
 
         <div class="holding-info" id="holdingInfo" style="display: none;">
           <strong>Company:</strong> <span id="holdingCompany">-</span><br />
-          <strong>Shares Owned:</strong> <span id="holdingShares">0</span><br />
-          <strong>Average Price:</strong> $<span id="holdingAvgPrice">0.00</span>
+          <strong>Shares Owned:</strong> <span id="holdingShares">0</span>
         </div>
 
         <div class="form-group">
           <label for="shares">Number of Shares to Sell *</label>
-          <input 
-            type="number" 
-            id="shares" 
-            name="shares" 
-            placeholder="e.g., 5" 
+          <input
+            type="number"
+            id="shares"
+            name="shares"
+            placeholder="e.g., 5"
             min="1"
             step="1"
-            required 
+            required
           />
           <span class="error" style="display: none;" id="sharesError">Must be a positive integer and not exceed your holdings</span>
         </div>
 
         <div class="form-group">
-          <label for="price">Price per Share ($) *</label>
-          <input 
-            type="number" 
-            id="price" 
-            name="price" 
-            placeholder="e.g., 150.25" 
+          <label for="price">Price per Share ($)</label>
+          <input
+            type="number"
+            id="price"
+            name="price"
+            placeholder="Select a stock first"
             min="0.01"
             step="0.01"
-            required 
+            readonly
+            required
           />
-          <span class="error" style="display: none;" id="priceError">Must be a positive number</span>
+          <span class="stock-hint">Price is fetched live and cannot be manually edited.</span>
         </div>
 
         <div class="price-preview">
           <strong>Total Proceeds:</strong> $<span id="totalProceeds">0.00</span>
           <div id="insufficientShares" style="color: #d32f2f; margin-top: 6px; display: none;">
-            ⚠️ You cannot sell more than you own
+            ⚠️ You cannot sell more shares than you own
           </div>
         </div>
 
-        <button type="submit" id="submitBtn">Place Sell Order</button>
+        <button type="submit" id="submitBtn" disabled style="opacity: 0.6;">Place Sell Order</button>
       </form>
     {% endif %}
   </div>
@@ -254,60 +267,93 @@
     const insufficientSharesDiv = document.getElementById('insufficientShares');
     const submitBtn = document.getElementById('submitBtn');
     const holdingInfo = document.getElementById('holdingInfo');
+    const stockHint = document.getElementById('stockHint');
+
+    // Fetch live prices from /api/ticker
+    let tickerPrices = {};
+    async function loadTickerPrices() {
+      try {
+        const res = await fetch('/api/ticker');
+        const { stocks } = await res.json();
+        stocks.forEach(s => {
+          tickerPrices[s.ticker] = s.current_price;
+        });
+      } catch (err) {
+        console.error('Failed to load ticker prices:', err);
+        stockHint.textContent = '⚠️ Could not load live prices. Please refresh.';
+        stockHint.style.color = '#d32f2f';
+      }
+    }
 
     function updateHoldingInfo() {
-      const selectedOption = tickerSelect.options[tickerSelect.selectedIndex];
-      if (selectedOption.value === '') {
+      const selected = tickerSelect.options[tickerSelect.selectedIndex];
+      if (!selected.value) {
         holdingInfo.style.display = 'none';
         sharesInput.value = '';
         priceInput.value = '';
+        priceInput.placeholder = 'Select a stock first';
         totalProceedsSpan.textContent = '0.00';
+        stockHint.textContent = '';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
         return;
       }
 
-      const company = selectedOption.getAttribute('data-company');
-      const shares = selectedOption.getAttribute('data-shares');
-      
-      // Get average price from portfolio (would need to pass this from backend)
+      const company = selected.getAttribute('data-company');
+      const shares = selected.getAttribute('data-shares');
+      const livePrice = tickerPrices[selected.value];
+
       document.getElementById('holdingCompany').textContent = company;
       document.getElementById('holdingShares').textContent = shares;
       holdingInfo.style.display = 'block';
-      
+
+      if (livePrice !== undefined) {
+        priceInput.value = livePrice.toFixed(2);
+        stockHint.textContent = `Live price: $${livePrice.toFixed(2)} per share`;
+        stockHint.style.color = '#5a3eaa';
+      } else {
+        priceInput.value = '';
+        priceInput.placeholder = 'Price unavailable';
+        stockHint.textContent = '⚠️ Price not available for this stock.';
+        stockHint.style.color = '#d32f2f';
+      }
+
       updateTotalProceeds();
     }
 
     function updateTotalProceeds() {
-      const selectedOption = tickerSelect.options[tickerSelect.selectedIndex];
-      if (selectedOption.value === '') {
+      const selected = tickerSelect.options[tickerSelect.selectedIndex];
+      if (!selected || !selected.value) {
         totalProceedsSpan.textContent = '0.00';
         insufficientSharesDiv.style.display = 'none';
         return;
       }
 
-      const maxShares = parseInt(selectedOption.getAttribute('data-shares')) || 0;
+      const maxShares = parseInt(selected.getAttribute('data-shares')) || 0;
       const shares = parseInt(sharesInput.value) || 0;
       const price = parseFloat(priceInput.value) || 0;
       const total = (shares * price).toFixed(2);
       totalProceedsSpan.textContent = total;
 
-      // Check if user is trying to sell more than they own
       if (shares > maxShares) {
         insufficientSharesDiv.style.display = 'block';
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
-      } else {
+      } else if (shares >= 1 && price > 0) {
         insufficientSharesDiv.style.display = 'none';
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
+      } else {
+        insufficientSharesDiv.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
       }
     }
 
     tickerSelect.addEventListener('change', updateHoldingInfo);
     sharesInput.addEventListener('input', updateTotalProceeds);
-    priceInput.addEventListener('input', updateTotalProceeds);
 
-    // Form validation
-    document.getElementById('sellForm').addEventListener('submit', function(e) {
+    document.getElementById('sellForm').addEventListener('submit', function (e) {
       const ticker = tickerSelect.value.trim();
       const shares = parseInt(sharesInput.value);
       const price = parseFloat(priceInput.value);
@@ -315,27 +361,24 @@
 
       let hasError = false;
 
-      if (!ticker) {
-        hasError = true;
-      }
+      if (!ticker) hasError = true;
 
-      if (shares < 1 || !Number.isInteger(shares) || shares > maxShares) {
+      if (!shares || shares < 1 || !Number.isInteger(shares) || shares > maxShares) {
         document.getElementById('sharesError').style.display = 'block';
         hasError = true;
       } else {
         document.getElementById('sharesError').style.display = 'none';
       }
 
-      if (price <= 0) {
-        document.getElementById('priceError').style.display = 'block';
-        hasError = true;
-      } else {
-        document.getElementById('priceError').style.display = 'none';
-      }
+      if (!price || price <= 0) hasError = true;
 
-      if (hasError) {
-        e.preventDefault();
-      }
+      if (hasError) e.preventDefault();
+    });
+
+    // Init
+    loadTickerPrices().then(() => {
+      // If a stock is already selected on page load, populate it
+      if (tickerSelect.value) updateHoldingInfo();
     });
   </script>
 </body>

@@ -3,167 +3,262 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>Wallet</title>
-
-  <!-- Keep this if you still want global styles -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
   <style>
-    body{
+    body {
       font-family: Arial, Helvetica, sans-serif;
+      background: #fff;
       margin: 0;
-      padding: 30px;
-      background: #ffffff;
-      color: #111;
+      padding: 0;
     }
 
-    .box{
-      max-width: 850px;
-      margin: 0 auto;
-      border: 1px solid #e7e2ff;
-      border-radius: 10px;
-      padding: 18px;
-    }
-
-    h1{ margin-top: 0; }
-    h2{ margin-bottom: 10px; margin-top: 25px; }
-
-    .row{
+    .navbar {
+      border-bottom: 1px solid #e7e2ff;
+      padding: 12px 18px;
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
     }
 
-    table{
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
+    .nav-brand {
+      font-weight: bold;
+      font-size: 16px;
+      color: #3b2a86;
     }
 
-    th, td{
-      border: 1px solid #eee;
-      padding: 10px;
-      text-align: left;
+    .nav-links {
+      display: flex;
+      gap: 12px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: #3b2a86;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #e7e2ff;
+    }
+
+    .nav-links a:hover {
+      background: #f4f1ff;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+      color: #3b2a86;
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .back-link {
+      text-decoration: none;
+      color: #6d3cff;
       font-size: 14px;
     }
 
-    th{
-      background: #f4f1ff;
+    .back-link:hover {
+      text-decoration: underline;
     }
 
-    .right{
-      text-align: right;
+    /* Balance Cards */
+    .balance-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 28px;
     }
 
-    input{
-      padding: 10px;
-      width: 200px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
+    .balance-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f9f7ff;
+      border: 1px solid #e7e2ff;
+      border-radius: 10px;
+      padding: 16px 20px;
     }
 
-    button{
+    .balance-card.total {
+      background: #ece6ff;
+      border-color: #d9ceff;
+    }
+
+    .balance-label {
+      font-size: 14px;
+      color: #7c6aa8;
+      margin-bottom: 2px;
+    }
+
+    .balance-value {
+      font-size: 22px;
+      font-weight: bold;
+      color: #3b2a86;
+    }
+
+    .balance-card.total .balance-value {
+      font-size: 26px;
+      color: #3b2a86;
+    }
+
+    .balance-icon {
+      font-size: 28px;
+    }
+
+    .cash-good  { color: #1a7a3a; }
+    .cash-mid   { color: #b8860b; }
+    .cash-low   { color: #b71c1c; }
+
+    .cash-warning {
+      font-size: 12px;
+      color: #b71c1c;
+      font-weight: bold;
+      margin-top: 2px;
+    }
+
+    /* Deposit Section */
+    .deposit-card {
+      background: #f9f7ff;
+      border: 1px solid #e7e2ff;
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .deposit-card h2 {
+      color: #3b2a86;
+      margin: 0 0 16px 0;
+      font-size: 18px;
+    }
+
+    .deposit-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .deposit-row input {
+      flex: 1;
       padding: 10px 14px;
       border: 1px solid #e7e2ff;
-      background: #f4f1ff;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .deposit-row input:focus {
+      outline: none;
+      border-color: #6d3cff;
+      box-shadow: 0 0 0 3px rgba(109, 60, 255, 0.1);
+    }
+
+    .deposit-row button {
+      background: #6d3cff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
       border-radius: 6px;
       cursor: pointer;
+      font-size: 14px;
       font-weight: bold;
+      white-space: nowrap;
     }
 
-    button:hover{
-      background: #ece6ff;
+    .deposit-row button:hover {
+      background: #5a2dd8;
     }
 
-    .links{
-      margin-top: 18px;
+    .deposit-row button:active {
+      transform: scale(0.98);
     }
 
-    a{
-      color: #3b2a86;
-      text-decoration: none;
-      font-weight: bold;
-    }
-
-    /* ===============================
-       WALLET CASH STATES (FIX)
-    ================================ */
-    .cash-good{
-      color: #2ecc71; /* finance green */
-      font-weight: 800;
-    }
-
-    .cash-mid{
-      color: #f1c40f; /* yellow */
-      font-weight: 800;
-    }
-
-    .cash-low{
-      color: #e74c3c; /* red */
-      font-weight: 800;
-    }
-
-    .cash-warning{
-      color: #e74c3c;
+    .deposit-hint {
       font-size: 12px;
-      font-weight: 700;
-      margin-top: 4px;
+      color: #7c6aa8;
+      margin-top: 8px;
     }
   </style>
 </head>
 
 <body>
-  <div class="box">
-    <h1>Wallet</h1>
+  <div class="navbar">
+    <div class="nav-brand">📈 Stock Trading App</div>
+    <div class="nav-links">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+  </div>
 
-    <!-- summary -->
-    <div class="row">
-      <div><b>Cash Balance</b></div>
-      <div class="right">
-        {% set cash_num = cash|float %}
+  <div class="container">
+    <div class="page-header">
+      <h1>💰 Wallet</h1>
+      <a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
+    </div>
 
-        {% if cash_num >= 8000 %}
-          <span class="cash-good">
-            ${{ "%.2f"|format(cash_num) }}
-          </span>
+    <div class="balance-cards">
 
-        {% elif cash_num >= 2000 %}
-          <span class="cash-mid">
-            ${{ "%.2f"|format(cash_num) }}
-          </span>
-
-        {% else %}
-          <span class="cash-low">
-            ${{ "%.2f"|format(cash_num) }}
-          </span>
-          <div class="cash-warning">
-            ⚠ Low on cash!
-          </div>
-        {% endif %}
+      <!-- Cash Balance -->
+      {% set cash_num = cash|float %}
+      <div class="balance-card">
+        <div>
+          <div class="balance-label">Cash Balance</div>
+          {% if cash_num >= 8000 %}
+            <div class="balance-value cash-good">${{ "%.2f"|format(cash_num) }}</div>
+          {% elif cash_num >= 2000 %}
+            <div class="balance-value cash-mid">${{ "%.2f"|format(cash_num) }}</div>
+          {% else %}
+            <div class="balance-value cash-low">${{ "%.2f"|format(cash_num) }}</div>
+            <div class="cash-warning">⚠️ Low on cash!</div>
+          {% endif %}
+        </div>
       </div>
+
+      <!-- Stock Holdings -->
+      <div class="balance-card">
+        <div>
+          <div class="balance-label">Stock Holdings Value</div>
+          <div class="balance-value">${{ "%.2f"|format(stock_value) }}</div>
+        </div>
+      </div>
+
+      <!-- Total -->
+      <div class="balance-card total">
+        <div>
+          <div class="balance-label">Total Portfolio Value</div>
+          <div class="balance-value">${{ "%.2f"|format(total_value) }}</div>
+        </div>
+      </div>
+
     </div>
 
-    <div class="row">
-      <div><b>Stock Holdings Value</b></div>
-      <div class="right">${{ "%.2f"|format(stock_value) }}</div>
-    </div>
-
-    <div class="row" style="border-bottom:none;">
-      <div><b>Total Portfolio Value</b></div>
-      <div class="right"><b>${{ "%.2f"|format(total_value) }}</b></div>
-    </div>
-
-    <!-- deposit -->
-    <h2>Deposit Money</h2>
-    <form action="/wallet/deposit" method="POST">
-      <input type="number" name="amount" step="0.01" min="0" placeholder="Enter amount" required />
-      <button type="submit">Deposit</button>
-    </form>
-
-    <div class="links">
-      <a href="/dashboard">← Back to Dashboard</a>
+    <!-- Deposit -->
+    <div class="deposit-card">
+      <h2>Deposit Money</h2>
+      <form action="/wallet/deposit" method="POST">
+        <div class="deposit-row">
+          <input
+            type="number"
+            name="amount"
+            step="0.01"
+            min="0.01"
+            placeholder="Enter amount"
+            required
+          />
+          <button type="submit">Deposit</button>
+        </div>
+        <div class="deposit-hint">Funds will be added to your cash balance instantly.</div>
+      </form>
     </div>
 
   </div>

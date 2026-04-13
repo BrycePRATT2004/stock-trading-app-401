@@ -86,6 +86,12 @@
       box-shadow: 0 0 0 3px rgba(109, 60, 255, 0.1);
     }
 
+    input[readonly] {
+      background: #f0eaff;
+      color: #5a3eaa;
+      cursor: not-allowed;
+    }
+
     .info-box {
       background: #ece6ff;
       border: 1px solid #d9ceff;
@@ -151,6 +157,19 @@
       margin-bottom: 16px;
       display: none;
     }
+
+    .stock-hint {
+      font-size: 12px;
+      color: #7c6aa8;
+      margin-top: 4px;
+    }
+
+    #loadingStocks {
+      font-size: 13px;
+      color: #7c6aa8;
+      margin-bottom: 12px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -182,57 +201,48 @@
       <strong>Available Cash:</strong> ${{ '%.2f' | format(cash) }}
     </div>
 
-<form method="POST" action="{{ url_for('buy') }}" id="buyForm">
-        <div class="form-group">
-        <label for="company">Company Name *</label>
-        <input 
-          type="text" 
-          id="company" 
-          name="company" 
-          placeholder="e.g., Apple Inc" 
-          required 
-        />
-      </div>
+    <div id="loadingStocks">Loading available stocks...</div>
+
+    <form method="POST" action="{{ url_for('buy') }}" id="buyForm">
+      <!-- Hidden fields sent to backend -->
+      <input type="hidden" id="company" name="company" />
+      <input type="hidden" id="ticker" name="ticker" />
 
       <div class="form-group">
-        <label for="ticker">Stock Ticker *</label>
-        <input 
-          type="text" 
-          id="ticker" 
-          name="ticker" 
-          placeholder="e.g., AAPL" 
-          maxlength="5"
-          required 
-        />
-        <span class="error" style="display: none;" id="tickerError">Ticker must be 1-5 characters</span>
+        <label for="stockSelect">Select Stock *</label>
+        <select id="stockSelect" required>
+          <option value="">-- Select a stock --</option>
+        </select>
+        <span class="stock-hint" id="stockHint"></span>
       </div>
 
       <div class="form-group">
         <label for="shares">Number of Shares *</label>
-        <input 
-          type="number" 
-          id="shares" 
-          name="shares" 
-          placeholder="e.g., 10" 
+        <input
+          type="number"
+          id="shares"
+          name="shares"
+          placeholder="e.g., 10"
           min="1"
           step="1"
-          required 
+          required
         />
         <span class="error" style="display: none;" id="sharesError">Must be a positive integer</span>
       </div>
 
       <div class="form-group">
-        <label for="price">Price per Share ($) *</label>
-        <input 
-          type="number" 
-          id="price" 
-          name="price" 
-          placeholder="e.g., 150.25" 
+        <label for="price">Price per Share ($)</label>
+        <input
+          type="number"
+          id="price"
+          name="price"
+          placeholder="Select a stock first"
           min="0.01"
           step="0.01"
-          required 
+          readonly
+          required
         />
-        <span class="error" style="display: none;" id="priceError">Must be a positive number</span>
+        <span class="stock-hint">Price is fetched live and cannot be manually edited.</span>
       </div>
 
       <div class="price-preview">
@@ -242,7 +252,7 @@
         </div>
       </div>
 
-      <button type="submit" id="submitBtn">Place Buy Order</button>
+      <button type="submit" id="submitBtn" disabled style="opacity: 0.6;">Place Buy Order</button>
     </form>
   </div>
 
@@ -252,7 +262,59 @@
     const totalCostSpan = document.getElementById('totalCost');
     const insufficientFundsDiv = document.getElementById('insufficientFunds');
     const submitBtn = document.getElementById('submitBtn');
+    const stockSelect = document.getElementById('stockSelect');
+    const stockHint = document.getElementById('stockHint');
     const availableCash = {{ cash }};
+
+    async function loadStocks() {
+      document.getElementById('loadingStocks').style.display = 'block';
+      try {
+        const res = await fetch('/api/ticker');
+        const { stocks } = await res.json();
+
+
+        stocks.sort((a, b) => a.ticker.localeCompare(b.ticker));
+
+        stocks.forEach(stock => {
+          const option = document.createElement('option');
+          option.value = stock.ticker;
+          option.textContent = `${stock.ticker} — $${stock.current_price.toFixed(2)}`;
+          option.dataset.price = stock.current_price;
+          option.dataset.company = stock.ticker;
+          stockSelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Failed to load stocks:', err);
+        stockHint.textContent = '⚠️ Could not load stocks. Please refresh.';
+        stockHint.style.color = '#d32f2f';
+      } finally {
+        document.getElementById('loadingStocks').style.display = 'none';
+      }
+    }
+
+    stockSelect.addEventListener('change', function () {
+      const selected = this.options[this.selectedIndex];
+      if (!selected.value) {
+        priceInput.value = '';
+        priceInput.placeholder = 'Select a stock first';
+        document.getElementById('company').value = '';
+        document.getElementById('ticker').value = '';
+        stockHint.textContent = '';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        updateTotalCost();
+        return;
+      }
+
+      const price = parseFloat(selected.dataset.price);
+      priceInput.value = price.toFixed(2);
+      document.getElementById('ticker').value = selected.value;
+      document.getElementById('company').value = selected.dataset.company || selected.value;
+      stockHint.textContent = `Selected: ${selected.value} @ $${price.toFixed(2)} per share`;
+      stockHint.style.color = '#5a3eaa';
+
+      updateTotalCost();
+    });
 
     function updateTotalCost() {
       const shares = parseFloat(sharesInput.value) || 0;
@@ -260,54 +322,54 @@
       const total = (shares * price).toFixed(2);
       totalCostSpan.textContent = total;
 
-      // Check if user has enough funds
-      if (total > availableCash) {
+      const stockSelected = !!stockSelect.value;
+      const hasShares = shares >= 1;
+
+      if (parseFloat(total) > availableCash) {
         insufficientFundsDiv.style.display = 'block';
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
-      } else {
+      } else if (stockSelected && hasShares) {
         insufficientFundsDiv.style.display = 'none';
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
+      } else {
+        insufficientFundsDiv.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
       }
     }
 
     sharesInput.addEventListener('input', updateTotalCost);
-    priceInput.addEventListener('input', updateTotalCost);
 
-    // Form validation
-    document.getElementById('buyForm').addEventListener('submit', function(e) {
-      const ticker = document.getElementById('ticker').value.trim();
+    document.getElementById('buyForm').addEventListener('submit', function (e) {
       const shares = parseInt(sharesInput.value);
       const price = parseFloat(priceInput.value);
+      const ticker = document.getElementById('ticker').value;
 
       let hasError = false;
 
-      if (ticker.length === 0 || ticker.length > 5) {
-        document.getElementById('tickerError').style.display = 'block';
+      if (!ticker) {
+        stockHint.textContent = '⚠️ Please select a stock.';
+        stockHint.style.color = '#d32f2f';
         hasError = true;
-      } else {
-        document.getElementById('tickerError').style.display = 'none';
       }
 
-      if (shares < 1 || !Number.isInteger(shares)) {
+      if (!shares || shares < 1 || !Number.isInteger(shares)) {
         document.getElementById('sharesError').style.display = 'block';
         hasError = true;
       } else {
         document.getElementById('sharesError').style.display = 'none';
       }
 
-      if (price <= 0) {
-        document.getElementById('priceError').style.display = 'block';
+      if (!price || price <= 0) {
         hasError = true;
-      } else {
-        document.getElementById('priceError').style.display = 'none';
       }
 
-      if (hasError) {
-        e.preventDefault();
-      }
+      if (hasError) e.preventDefault();
     });
+
+    loadStocks();
   </script>
 </body>
 </html>
