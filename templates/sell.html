@@ -358,6 +358,7 @@
       const shares = parseInt(sharesInput.value);
       const price = parseFloat(priceInput.value);
       const maxShares = parseInt(tickerSelect.options[tickerSelect.selectedIndex].getAttribute('data-shares')) || 0;
+      const company = tickerSelect.options[tickerSelect.selectedIndex].getAttribute('data-company') || ticker;
 
       let hasError = false;
 
@@ -372,7 +373,19 @@
 
       if (!price || price <= 0) hasError = true;
 
-      if (hasError) e.preventDefault();
+      if (hasError) {
+        e.preventDefault();
+        return;
+      }
+
+      const totalProceeds = (shares * price).toFixed(2);
+      const confirmed = confirm(
+        `Confirm sell order:\n\nCompany: ${company}\nTicker: ${ticker}\nShares: ${shares}\nPrice: $${price.toFixed(2)}\nTotal proceeds: $${totalProceeds}\n\nAre you sure you want to place this order?`
+      );
+
+      if (!confirmed) {
+        e.preventDefault();
+      }
     });
 
     // Init

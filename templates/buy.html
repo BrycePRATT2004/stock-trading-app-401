@@ -346,6 +346,7 @@
       const shares = parseInt(sharesInput.value);
       const price = parseFloat(priceInput.value);
       const ticker = document.getElementById('ticker').value;
+      const company = document.getElementById('company').value || ticker;
 
       let hasError = false;
 
@@ -366,7 +367,19 @@
         hasError = true;
       }
 
-      if (hasError) e.preventDefault();
+      if (hasError) {
+        e.preventDefault();
+        return;
+      }
+
+      const totalCost = (shares * price).toFixed(2);
+      const confirmed = confirm(
+        `Confirm buy order:\n\nCompany: ${company}\nTicker: ${ticker}\nShares: ${shares}\nPrice: $${price.toFixed(2)}\nTotal cost: $${totalCost}\n\nAre you sure you want to place this order?`
+      );
+
+      if (!confirmed) {
+        e.preventDefault();
+      }
     });
 
     loadStocks();
