@@ -272,7 +272,23 @@
         You have no stocks to sell. Visit the <a href="{{ url_for('buy') }}" style="color: #0056b3;">Buy page</a> to start trading.
       </div>
     {% else %}
+      {% if success %}
+        <div class="success" style="display: block;">
+          Order placed successfully! Check pending orders on your dashboard.
+        </div>
+      {% endif %}
+      {% if pending %}
+        <div class="success" style="display: block; background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32;">
+          Your order was saved as pending. It will execute on the next market open.
+        </div>
+      {% endif %}
+      {% if market_closed and pending_data %}
+        <div class="info-box" style="background: #fff3cd; border-color: #ffe082; color: #856404;">
+          Market is currently closed. Submit this order as pending and it will execute on the next market open.
+        </div>
+      {% endif %}
       <form method="POST" action="{{ url_for('sell_post') }}" id="sellForm">
+        <input type="hidden" name="pending_confirm" id="pending_confirm" value="" />
         <div class="form-group">
           <label for="ticker">Select Stock to Sell *</label>
           <select id="ticker" name="ticker" required>
@@ -329,6 +345,15 @@
 
         <button type="submit" id="submitBtn" disabled style="opacity: 0.6;">Place Sell Order</button>
       </form>
+      {% if market_closed and pending_data %}
+        <form method="POST" action="{{ url_for('sell_post') }}" style="margin-top: 24px;">
+          <input type="hidden" name="ticker" value="{{ pending_data.ticker }}" />
+          <input type="hidden" name="shares" value="{{ pending_data.shares }}" />
+          <input type="hidden" name="price" value="{{ pending_data.price }}" />
+          <input type="hidden" name="pending_confirm" value="yes" />
+          <button type="submit">Confirm Pending Sell Order</button>
+        </form>
+      {% endif %}
     {% endif %}
   </div>
 

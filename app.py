@@ -110,6 +110,9 @@ def price_update_loop():
         open_now = is_market_open()
         if open_now and last_market_state is False:
             reset_opening_prices()
+            process_pending_orders()
+        elif open_now and last_market_state is None:
+            process_pending_orders()
         last_market_state = open_now
 
         # Always update prices regardless of market hours
@@ -119,6 +122,75 @@ def price_update_loop():
 def start_price_thread():
     t = threading.Thread(target=price_update_loop, daemon=True)
     t.start()
+
+def process_pending_orders():
+    pending_orders = list(trades_col.find({"status": "pending"}).sort("created_at", 1))
+    if not pending_orders:
+        return
+
+    for order in pending_orders:
+        user_id = order["user_id"]
+        user = users_col.find_one({"_id": user_id})
+        if not user:
+            trades_col.update_one(
+                {"_id": order["_id"]},
+                {"$set": {"status": "failed", "failed_reason": "User not found at execution", "executed_at": datetime.utcnow()}}
+            )
+            continue
+
+        ticker = order.get("ticker")
+        shares = int(order.get("shares", 0))
+        stock_state = ticker_state.get(ticker)
+        execution_price = None
+
+        if stock_state:
+            execution_price = float(stock_state.get("current_price", 0.0))
+        else:
+            stock_doc = stocks_col.find_one({"ticker": ticker})
+            execution_price = float(stock_doc.get("price", 0.0)) if stock_doc else None
+
+        if execution_price is None or execution_price <= 0:
+            trades_col.update_one(
+                {"_id": order["_id"]},
+                {"$set": {"status": "failed", "failed_reason": "Could not determine execution price", "executed_at": datetime.utcnow()}}
+            )
+            continue
+
+        if order["type"] == "buy":
+            cash = float(user.get("cash", 0.0))
+            total_cost = round(execution_price * shares, 2)
+            if cash >= total_cost:
+                users_col.update_one(
+                    {"_id": user_id},
+                    {"$inc": {"cash": -total_cost, f"holdings.{ticker}": shares}}
+                )
+                trades_col.update_one(
+                    {"_id": order["_id"]},
+                    {"$set": {"status": "completed", "price": execution_price, "total_proceeds": total_cost, "executed_at": datetime.utcnow()}}
+                )
+            else:
+                trades_col.update_one(
+                    {"_id": order["_id"]},
+                    {"$set": {"status": "failed", "failed_reason": "Insufficient funds at market open", "executed_at": datetime.utcnow()}}
+                )
+        else:
+            holdings = user.get("holdings", {}) or {}
+            if holdings.get(ticker, 0) >= shares:
+                total_proceeds = round(execution_price * shares, 2)
+                users_col.update_one(
+                    {"_id": user_id},
+                    {"$inc": {"cash": total_proceeds, f"holdings.{ticker}": -shares}}
+                )
+                trades_col.update_one(
+                    {"_id": order["_id"]},
+                    {"$set": {"status": "completed", "price": execution_price, "total_proceeds": total_proceeds, "executed_at": datetime.utcnow()}}
+                )
+            else:
+                trades_col.update_one(
+                    {"_id": order["_id"]},
+                    {"$set": {"status": "failed", "failed_reason": "Insufficient holdings at market open", "executed_at": datetime.utcnow()}}
+                )
+
 
 def get_current_user():
     user_id = session.get("user_id")
@@ -316,14 +388,11 @@ def buy():
     cash = get_current_cash(default=0.0)
 
     if request.method == "POST":
-        # Block trading outside market hours
-        if not is_market_open():
-            return render_template("buy.html", cash=cash, error="Market is closed. Trading hours are Mon–Fri, 9:00 AM – 4:00 PM ET.")
-
         company = request.form.get("company", "").strip()
         ticker = request.form.get("ticker", "").strip().upper()
         shares_raw = request.form.get("shares", "").strip()
         price_raw = request.form.get("price", "").strip()
+        pending_confirm = request.form.get("pending_confirm") == "yes"
 
         try:
             shares = int(shares_raw)
@@ -342,7 +411,35 @@ def buy():
         if not stock:
             return render_template("buy.html", cash=cash, error="Stock not found.")
 
+        if not is_market_open() and not pending_confirm:
+            pending_data = {
+                "company": company,
+                "ticker": ticker,
+                "shares": shares,
+                "price": price,
+                "total_cost": total_cost,
+            }
+            return render_template("buy.html", cash=cash, pending_data=pending_data, market_closed=True)
+
         user_id = ObjectId(session["user_id"])
+
+        if not is_market_open() and pending_confirm:
+            trades_col.insert_one({
+                "user_id": user_id,
+                "type": "buy",
+                "company": company,
+                "ticker": ticker,
+                "shares": shares,
+                "price": price,
+                "requested_price": price,
+                "requested_total": total_cost,
+                "total_proceeds": total_cost,
+                "status": "pending",
+                "created_at": datetime.utcnow(),
+                "pending_at": datetime.utcnow()
+            })
+            return render_template("buy.html", cash=cash, success=True, pending=True)
+
         users_col.update_one(
             {"_id": user_id},
             {"$inc": {"cash": -total_cost, f"holdings.{ticker}": shares}}
@@ -390,14 +487,11 @@ def sell_post():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
 
-    # Block trading outside market hours
-    if not is_market_open():
-        return redirect(url_for("sell"))
-
     holdings = get_current_holdings()
     ticker = request.form.get("ticker", "").strip().upper()
     shares_raw = request.form.get("shares", "").strip()
     price_raw = request.form.get("price", "").strip()
+    pending_confirm = request.form.get("pending_confirm") == "yes"
 
     try:
         shares = int(shares_raw)
@@ -415,8 +509,49 @@ def sell_post():
         return redirect(url_for("sell"))
 
     total_proceeds = shares * price
+
+    if not is_market_open() and not pending_confirm:
+        pending_data = {
+            "company": stock.get("name", ticker),
+            "ticker": ticker,
+            "shares": shares,
+            "price": price,
+            "total_proceeds": total_proceeds,
+        }
+        portfolio = {}
+        for t, s in holdings.items():
+            if s > 0:
+                stock_info = stocks_col.find_one({"ticker": t})
+                if stock_info:
+                    portfolio[t] = {"company": stock_info.get("name", t), "shares": s}
+        return render_template("sell.html", portfolio=portfolio, market_closed=True, pending_data=pending_data)
+
     user_id = ObjectId(session["user_id"])
 
+    if not is_market_open() and pending_confirm:
+        trades_col.insert_one({
+            "user_id": user_id,
+            "type": "sell",
+            "company": stock.get("name", ticker),
+            "ticker": ticker,
+            "shares": shares,
+            "price": price,
+            "requested_price": price,
+            "requested_total": total_proceeds,
+            "total_proceeds": total_proceeds,
+            "status": "pending",
+            "created_at": datetime.utcnow(),
+            "pending_at": datetime.utcnow()
+        })
+        portfolio = {}
+        for t, s in holdings.items():
+            if s > 0:
+                stock_info = stocks_col.find_one({"ticker": t})
+                if stock_info:
+                    portfolio[t] = {"company": stock_info.get("name", t), "shares": s}
+        return render_template("sell.html", portfolio=portfolio, success=True, pending=True)
+
+    user_id = ObjectId(session["user_id"])
     users_col.update_one(
         {"_id": user_id},
         {"$inc": {"cash": total_proceeds, f"holdings.{ticker}": -shares}}
@@ -560,6 +695,23 @@ def admin():
 
     stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
     return render_template("admin.html", stocks=stocks)
+
+@app.route("/admin/delete", methods=["POST"])
+def delete_stock():
+    if "user_id" not in session:
+        return redirect(url_for("login_page"))
+
+    if session.get("role") != "admin":
+        return "Forbidden", 403
+
+    ticker = request.form.get("ticker", "").strip().upper()
+    if ticker:
+        stocks_col.delete_one({"ticker": ticker})
+        with ticker_lock:
+            ticker_state.pop(ticker, None)
+
+    stocks = list(stocks_col.find({}, {"_id": 0}).sort("ticker", 1))
+    return render_template("admin.html", stocks=stocks, success=True)
 
 
 # ----------------------------
