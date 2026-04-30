@@ -270,9 +270,9 @@
                 <td>{{ o.company }}</td>
                 <td class="ticker-text">{{ o.ticker }}</td>
                 <td>{{ o.shares }}</td>
-                <td>${{ '%.2f'|format(o.price) if o.price is not none else '—' }}</td>
+                <td>${{ '%.2f'|format(o.get('price')) if o.get('price') is not none else '—' }}</td>
                 <td class="total-text">
-                  ${{ '%.2f'|format(o.total_proceeds if o.total_proceeds is defined else (o.shares * o.price if o.shares and o.price else 0)) }}
+                  ${{ '%.2f'|format(o.get('total_proceeds') if o.get('total_proceeds') is not none else (o.get('shares') * o.get('price') if o.get('shares') and o.get('price') else 0)) }}
                 </td>
                 <td>
                   <span class="status-badge">{{ o.status }}</span>
