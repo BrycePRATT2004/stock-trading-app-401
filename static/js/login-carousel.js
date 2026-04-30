@@ -5,7 +5,7 @@
   if (!slides.length) return;
 
   let idx = 0;
-  const intervalMs = 7000; // <-- change to 5000-10000
+  const intervalMs = 10000; // <-- change to 5000-10000
 
   function show(i) {
     slides.forEach((s, n) => s.classList.toggle('is-active', n === i));
