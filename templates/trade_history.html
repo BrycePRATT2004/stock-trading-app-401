@@ -211,7 +211,7 @@
 <body>
 
   <div class="navbar">
-    <div class="nav-brand">📈 Stock Trading App</div>
+    <div class="nav-brand">Stock Trading App</div>
     <div class="nav-links">
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('logout') }}">Logout</a>
@@ -285,7 +285,6 @@
 
     {% else %}
       <div class="empty-state">
-        <div class="icon">📭</div>
         <p style="font-size: 16px; font-weight: bold; color: #3b2a86;">No trades yet</p>
         <p>Your executed orders will appear here.</p>
       </div>

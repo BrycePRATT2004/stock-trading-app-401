@@ -172,12 +172,85 @@
       border-radius: 6px;
       margin-bottom: 16px;
     }
+
+    /* Confirmation Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      padding: 28px 28px 22px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
+    .modal h2 {
+      margin: 0 0 18px 0;
+      font-size: 17px;
+      color: #3b2a86;
+    }
+    .modal-detail {
+      background: #f9f7ff;
+      border: 1px solid #e7e2ff;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #222;
+    }
+    .modal-detail strong { color: #3b2a86; }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-actions button {
+      flex: 1;
+      padding: 11px;
+      font-size: 15px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-cancel {
+      background: #f4f1ff;
+      color: #3b2a86;
+      border: 1px solid #e7e2ff !important;
+    }
+    .btn-cancel:hover { background: #ece6ff; }
+    .btn-confirm {
+      background: #6d3cff;
+      color: white;
+    }
+    .btn-confirm:hover { background: #5a2dd8; }
   </style>
 </head>
 
 <body>
+  <!-- Order confirmation modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <h2>Confirm Sell Order</h2>
+      <div class="modal-detail" id="modalDetail"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="modalCancel" type="button">Cancel</button>
+        <button class="btn-confirm" id="modalConfirm" type="button">Place Order</button>
+      </div>
+    </div>
+  </div>
+
   <div class="navbar">
-    <div class="nav-brand">📈 Stock Trading App</div>
+    <div class="nav-brand">Stock Trading App</div>
     <div class="nav-links">
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('logout') }}">Logout</a>
@@ -196,7 +269,7 @@
 
     {% if not portfolio or portfolio|length == 0 %}
       <div class="no-holdings">
-        📭 You have no stocks to sell. Visit the <a href="{{ url_for('buy') }}" style="color: #0056b3;">Buy page</a> to start trading!
+        You have no stocks to sell. Visit the <a href="{{ url_for('buy') }}" style="color: #0056b3;">Buy page</a> to start trading.
       </div>
     {% else %}
       <form method="POST" action="{{ url_for('sell_post') }}" id="sellForm">
@@ -250,7 +323,7 @@
         <div class="price-preview">
           <strong>Total Proceeds:</strong> $<span id="totalProceeds">0.00</span>
           <div id="insufficientShares" style="color: #d32f2f; margin-top: 6px; display: none;">
-            ⚠️ You cannot sell more shares than you own
+            You cannot sell more shares than you own
           </div>
         </div>
 
@@ -280,7 +353,7 @@
         });
       } catch (err) {
         console.error('Failed to load ticker prices:', err);
-        stockHint.textContent = '⚠️ Could not load live prices. Please refresh.';
+        stockHint.textContent = 'Could not load live prices. Please refresh.';
         stockHint.style.color = '#d32f2f';
       }
     }
@@ -314,7 +387,7 @@
       } else {
         priceInput.value = '';
         priceInput.placeholder = 'Price unavailable';
-        stockHint.textContent = '⚠️ Price not available for this stock.';
+        stockHint.textContent = 'Price not available for this stock.';
         stockHint.style.color = '#d32f2f';
       }
 
@@ -353,7 +426,12 @@
     tickerSelect.addEventListener('change', updateHoldingInfo);
     sharesInput.addEventListener('input', updateTotalProceeds);
 
+    let pendingSubmit = false;
+
     document.getElementById('sellForm').addEventListener('submit', function (e) {
+      if (pendingSubmit) return;
+      e.preventDefault();
+
       const ticker = tickerSelect.value.trim();
       const shares = parseInt(sharesInput.value);
       const price = parseFloat(priceInput.value);
@@ -372,20 +450,26 @@
       }
 
       if (!price || price <= 0) hasError = true;
-
-      if (hasError) {
-        e.preventDefault();
-        return;
-      }
+      if (hasError) return;
 
       const totalProceeds = (shares * price).toFixed(2);
-      const confirmed = confirm(
-        `Confirm sell order:\n\nCompany: ${company}\nTicker: ${ticker}\nShares: ${shares}\nPrice: $${price.toFixed(2)}\nTotal proceeds: $${totalProceeds}\n\nAre you sure you want to place this order?`
-      );
+      document.getElementById('modalDetail').innerHTML =
+        `<strong>Ticker:</strong> ${ticker}<br>` +
+        `<strong>Company:</strong> ${company}<br>` +
+        `<strong>Shares:</strong> ${shares}<br>` +
+        `<strong>Price per share:</strong> $${price.toFixed(2)}<br>` +
+        `<strong>Total proceeds:</strong> $${totalProceeds}`;
+      document.getElementById('confirmModal').classList.add('active');
+    });
 
-      if (!confirmed) {
-        e.preventDefault();
-      }
+    document.getElementById('modalCancel').addEventListener('click', function () {
+      document.getElementById('confirmModal').classList.remove('active');
+    });
+
+    document.getElementById('modalConfirm').addEventListener('click', function () {
+      pendingSubmit = true;
+      document.getElementById('confirmModal').classList.remove('active');
+      document.getElementById('sellForm').submit();
     });
 
     // Init

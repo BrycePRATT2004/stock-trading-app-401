@@ -254,7 +254,7 @@
 
 <body>
   <div class="navbar">
-    <div class="nav-brand">📈 Stock Trading App</div>
+    <div class="nav-brand">Stock Trading App</div>
     <div class="nav-links">
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('logout') }}">Logout</a>
@@ -263,7 +263,7 @@
 
   <div class="container">
     <div class="page-header">
-      <h1>💰 Wallet</h1>
+      <h1>Wallet</h1>
       <a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
     </div>
 
@@ -280,7 +280,7 @@
             <div class="balance-value cash-mid">${{ "%.2f"|format(cash_num) }}</div>
           {% else %}
             <div class="balance-value cash-low">${{ "%.2f"|format(cash_num) }}</div>
-            <div class="cash-warning">⚠️ Low on cash!</div>
+            <div class="cash-warning">Low on cash</div>
           {% endif %}
         </div>
       </div>

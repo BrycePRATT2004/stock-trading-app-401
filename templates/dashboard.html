@@ -362,12 +362,11 @@
     <div class="logo">PT</div>
 
     <div class="title">
-      <b>Deep Space Trading</b>
+      <b>Stock Trading App</b>
       <small>Dashboard</small>
     </div>
 
     <div class="search">
-      <span style="color:#777;">🔍</span>
       <input id="searchInput" type="text" placeholder="Search tickers..." />
     </div>
 
@@ -391,15 +390,15 @@
               <option>Individual</option>
             </select>
           </div>
-          <div style="color:#666;font-size:12px;">(static page for now)</div>
+          <div style="color:#666;font-size:12px;">Portfolio Value</div>
         </div>
 
         <div class="balance">
-          <h1>${{ "%.2f"|format(cash) }}</h1>
-          <div class="change {% if total_portfolio_change >= 0 %}good{% else %}bad{% endif %}">
-            {% if total_portfolio_change >= 0 %}▲{% else %}▼{% endif %}
-            ${{ "%.2f"|format(total_portfolio_change|abs) }}
-            ({{ "%.2f"|format(total_portfolio_change_pct|abs) }}%) Today
+          <h1 id="portfolioValue">${{ "%.2f"|format(portfolio_value) }}</h1>
+          <div class="change" id="portfolioChange">
+            <span id="changeArrow">{% if total_portfolio_change >= 0 %}▲{% else %}▼{% endif %}</span>
+            $<span id="changeAmt">{{ "%.2f"|format(total_portfolio_change|abs) }}</span>
+            (<span id="changePct">{{ "%.2f"|format(total_portfolio_change_pct|abs) }}</span>%) Today
           </div>
         </div>
 
@@ -567,6 +566,33 @@
       });
     }
 
+    // Holdings injected from server: ticker -> shares
+    const holdings = {{ portfolio.stocks | tojson }};
+    const cashBalance = {{ cash }};
+
+    function updatePortfolioValue(tickerData) {
+      let stocksValue = 0;
+      let openingStocksValue = 0;
+      tickerData.forEach(function(stock) {
+        const shares = holdings[stock.ticker] || 0;
+        if (shares > 0) {
+          stocksValue += shares * stock.current_price;
+          openingStocksValue += shares * stock.opening_price;
+        }
+      });
+      const total = cashBalance + stocksValue;
+      const openingTotal = cashBalance + openingStocksValue;
+      const change = total - openingTotal;
+      const changePct = openingTotal > 0 ? (change / openingTotal) * 100 : 0;
+
+      document.getElementById('portfolioValue').textContent = '$' + total.toFixed(2);
+      document.getElementById('changeAmt').textContent = Math.abs(change).toFixed(2);
+      document.getElementById('changePct').textContent = Math.abs(changePct).toFixed(2);
+      document.getElementById('changeArrow').textContent = change >= 0 ? '▲' : '▼';
+      const changeEl = document.getElementById('portfolioChange');
+      changeEl.className = 'change ' + (change >= 0 ? 'good' : 'bad');
+    }
+
     // Main fetch function
     function updateTicker() {
       fetch('/api/ticker')
@@ -574,6 +600,7 @@
         .then(data => {
           renderTickerTable(data.stocks);
           updateWatchlist(data.stocks);
+          updatePortfolioValue(data.stocks);
 
           // Market open/closed banner
           const banner = document.getElementById('marketClosedBanner');
